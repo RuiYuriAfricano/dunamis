@@ -7,8 +7,11 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // CORS origins never include a trailing slash — strip one if WEB_ORIGIN was
+  // set with one, since that would silently fail every preflight check.
+  const webOrigin = (process.env.WEB_ORIGIN ?? 'http://localhost:3000').replace(/\/+$/, '');
   app.enableCors({
-    origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
+    origin: webOrigin,
   });
 
   app.useGlobalPipes(
