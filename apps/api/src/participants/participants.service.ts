@@ -12,6 +12,7 @@ import { CreateParticipantDto } from './dto/create-participant.dto';
 import { LookupParticipantDto } from './dto/lookup-participant.dto';
 import { QueryParticipantsDto } from './dto/query-participants.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
+import { storePaymentProof } from './payment-proof-storage';
 
 const PAYMENT_AMOUNT_MEMBER = 5000;
 const PAYMENT_AMOUNT_VISITOR = 2500;
@@ -65,6 +66,10 @@ export class ParticipantsService {
       }
     }
 
+    // Uploaded outside the transaction: it's a network/disk call, not something
+    // that should hold a database transaction open.
+    const paymentProofPath = await storePaymentProof(paymentProof);
+
     const participant = await this.prisma.$transaction(async (tx) => {
       const [{ value }] = await tx.$queryRaw<
         { value: number }[]
@@ -93,7 +98,7 @@ export class ParticipantsService {
           tentRequired: dto.tentRequired,
           mattressRequired: dto.mattressRequired,
           paymentAmount,
-          paymentProofPath: `payment-proofs/${paymentProof.filename}`,
+          paymentProofPath,
           qrToken,
         },
         include: { transportStop: { select: { id: true, name: true } } },

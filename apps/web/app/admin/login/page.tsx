@@ -81,7 +81,10 @@ export default function AdminLoginPage() {
 
           <ul className="space-y-3">
             {FEATURES.map((feature) => (
-              <li key={feature.label} className="flex items-center gap-3 text-sm text-dunamis-green-foreground/85">
+              <li
+                key={feature.label}
+                className="flex items-center justify-center gap-3 text-center text-sm text-dunamis-green-foreground/85"
+              >
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10">
                   <feature.icon className="size-4 text-primary" aria-hidden />
                 </span>

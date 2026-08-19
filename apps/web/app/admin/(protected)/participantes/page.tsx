@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/lib/use-session";
-import { apiFetch, API_URL } from "@/lib/api";
+import { apiFetch, API_URL, paymentProofUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { PaymentStatus, type ParticipantSummary, type TransportStopSummary } from "@dunamis/types";
 
@@ -340,7 +340,7 @@ export default function ParticipantsPage() {
                           </span>
                         </div>
                         <a
-                          href={`${API_URL}/uploads/${p.paymentProofPath}`}
+                          href={paymentProofUrl(p.paymentProofPath)}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-primary underline underline-offset-2"

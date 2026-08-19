@@ -1,5 +1,13 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
+/**
+ * paymentProofPath is either a full URL (Supabase Storage in production) or a
+ * path relative to /uploads (local disk fallback in development).
+ */
+export function paymentProofUrl(paymentProofPath: string): string {
+  return paymentProofPath.startsWith("http") ? paymentProofPath : `${API_URL}/uploads/${paymentProofPath}`;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
