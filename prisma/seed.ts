@@ -1,9 +1,15 @@
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import * as path from "node:path";
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 
-process.loadEnvFile(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env"));
+// Only local dev has a real .env file to load — in production (Render, etc.)
+// env vars are injected directly into process.env by the platform.
+const envPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env");
+if (existsSync(envPath)) {
+  process.loadEnvFile(envPath);
+}
 
 const prisma = new PrismaClient();
 
