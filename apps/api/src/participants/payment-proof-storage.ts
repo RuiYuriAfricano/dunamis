@@ -4,8 +4,12 @@ import { BadRequestException } from '@nestjs/common';
 import { diskStorage } from 'multer';
 import { nanoid } from 'nanoid';
 
+// Anchored to this file's location (apps/api/dist/participants/), not process.cwd(),
+// so uploads resolve consistently regardless of the directory the process is started from.
 export const PAYMENT_PROOFS_DIR = join(
-  process.cwd(),
+  __dirname,
+  '..',
+  '..',
   'uploads',
   'payment-proofs',
 );

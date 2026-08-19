@@ -19,7 +19,9 @@ async function bootstrap() {
     }),
   );
 
-  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
+  // Anchored to this file's location (apps/api/dist/main.js), not process.cwd(),
+  // so uploads resolve consistently regardless of the directory the process is started from.
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
 
   await app.listen(process.env.PORT ?? 3001);
 }
