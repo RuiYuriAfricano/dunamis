@@ -1,0 +1,25 @@
+import { RegistrationForm } from "@/components/registration/registration-form";
+import { apiFetch } from "@/lib/api";
+import { EVENT_DATE_RANGE, EVENT_LOCATION } from "@/lib/event";
+import type { TransportStopSummary } from "@dunamis/types";
+
+export const dynamic = "force-dynamic";
+
+export default async function InscricaoPage() {
+  const stops = await apiFetch<TransportStopSummary[]>("/transport-stops");
+
+  return (
+    <div className="bg-gradient-to-b from-primary/10 via-background to-background">
+      <div className="mx-auto w-full max-w-2xl px-6 py-16">
+        <div className="mb-8 text-center">
+          <h1 className="font-display text-3xl tracking-wide text-dunamis-green">Inscrição</h1>
+          <p className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <span>📅 {EVENT_DATE_RANGE}</span>
+            <span>📍 {EVENT_LOCATION}</span>
+          </p>
+        </div>
+        <RegistrationForm stops={stops} />
+      </div>
+    </div>
+  );
+}

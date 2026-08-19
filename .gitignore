@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# env files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# next.js
+apps/web/.next/
+apps/web/out/
+apps/web/next-env.d.ts
+*.tsbuildinfo
+
+# nestjs
+apps/api/dist/
+apps/api/uploads/
+
+# prisma
+prisma/generated/
+
+# testing
+coverage/
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+.vercel

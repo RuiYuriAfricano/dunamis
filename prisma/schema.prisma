@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+model TransportStop {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  active       Boolean       @default(true)
+  participants Participant[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("transport_stops")
+}
+
+model Participant {
+  id                  String         @id @default(cuid())
+  registrationNumber  String         @unique @map("registration_number")
+  fullName            String         @map("full_name")
+  gender              Gender
+  birthDate           DateTime       @map("birth_date")
+  phone               String
+  whatsapp            String
+  email               String
+  church              String
+  isMemberTibl        Boolean        @map("is_member_tibl")
+  firstTime           Boolean        @map("first_time")
+  transportRequired   Boolean        @map("transport_required")
+  transportStopId     String?        @map("transport_stop_id")
+  transportStop       TransportStop? @relation(fields: [transportStopId], references: [id])
+  tentRequired        Boolean        @map("tent_required")
+  mattressRequired    Boolean        @map("mattress_required")
+  paymentAmount       Int            @map("payment_amount")
+  paymentProofPath    String         @map("payment_proof_path")
+  paymentStatus       PaymentStatus  @default(PENDING) @map("payment_status")
+  paymentReviewedById String?        @map("payment_reviewed_by_id")
+  paymentReviewedBy   User?          @relation("PaymentReviewer", fields: [paymentReviewedById], references: [id])
+  paymentReviewedAt   DateTime?      @map("payment_reviewed_at")
+  qrToken             String         @unique @map("qr_token")
+  checkedIn           Boolean        @default(false) @map("checked_in")
+  checkedInAt         DateTime?      @map("checked_in_at")
+  checkedInById       String?        @map("checked_in_by_id")
+  checkedInBy         User?          @relation("CheckInOperator", fields: [checkedInById], references: [id])
+  checkIn             CheckIn?
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  @@index([fullName])
+  @@index([phone])
+  @@index([church])
+  @@index([checkedIn])
+  @@map("participants")
+}
+
+model User {
+  id                    String        @id @default(cuid())
+  name                  String
+  email                 String        @unique
+  passwordHash          String        @map("password_hash")
+  role                  Role
+  checkIns              CheckIn[]
+  checkedInParticipants Participant[] @relation("CheckInOperator")
+  paymentReviews        Participant[] @relation("PaymentReviewer")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model CheckIn {
+  id            String      @id @default(cuid())
+  participantId String      @unique @map("participant_id")
+  participant   Participant @relation(fields: [participantId], references: [id])
+  operatorId    String      @map("operator_id")
+  operator      User        @relation(fields: [operatorId], references: [id])
+  checkedInAt   DateTime    @default(now()) @map("checked_in_at")
+
+  @@map("check_ins")
+}
