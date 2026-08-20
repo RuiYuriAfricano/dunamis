@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { createTransport, type Transporter } from 'nodemailer';
-import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 const SENDER_NAME = 'DUNAMIS · Terceira Igreja Baptista de Luanda';
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 
 interface PaymentConfirmedEmailInput {
   to: string;
@@ -18,127 +17,128 @@ interface PaymentRejectedEmailInput {
   registrationNumber: string;
 }
 
+interface BrevoEmailPayload {
+  sender: { name: string; email: string };
+  to: { email: string }[];
+  subject: string;
+  htmlContent: string;
+  textContent: string;
+  attachment?: { name: string; content: string }[];
+}
+
+/**
+ * Sends transactional email through Brevo's HTTPS API instead of raw SMTP.
+ * Render's free-tier network silently drops outbound connections on SMTP
+ * ports (25/465/587) — every attempt via Gmail SMTP timed out at exactly the
+ * configured connectionTimeout, both over IPv4 and IPv6, which is the
+ * signature of an egress port block rather than a DNS/auth problem. HTTPS
+ * (443) isn't blocked, so the fix is switching transport, not tuning SMTP.
+ */
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private transporter: Transporter | null | undefined;
 
-  /**
-   * Returns a cached SMTP transporter if GMAIL_USER/GMAIL_APP_PASSWORD are
-   * configured, otherwise null. Without them, emails are skipped (logged
-   * instead) — convenient for local development without Gmail credentials.
-   */
-  private getTransporter(): Transporter | null {
-    if (this.transporter !== undefined) return this.transporter;
+  private getSenderEmail(): string | null {
+    const apiKey = process.env.BREVO_API_KEY;
+    const senderEmail = process.env.BREVO_SENDER_EMAIL ?? process.env.GMAIL_USER;
 
-    const user = process.env.GMAIL_USER;
-    const pass = process.env.GMAIL_APP_PASSWORD;
-
-    if (!user || !pass) {
+    if (!apiKey || !senderEmail) {
       this.logger.warn(
-        'GMAIL_USER/GMAIL_APP_PASSWORD não definidos — emails de validação de pagamento não serão enviados.',
+        'BREVO_API_KEY/BREVO_SENDER_EMAIL não definidos — emails de validação de pagamento não serão enviados.',
       );
-      this.transporter = null;
       return null;
     }
 
-    // Fail fast instead of hanging silently — a blocked/slow SMTP connection
-    // would otherwise leave the caller's fire-and-forget promise pending
-    // forever, with nothing ever reaching the logs.
-    // `family` isn't in @types/nodemailer's Options, but nodemailer forwards
-    // unrecognized options straight through to Node's net/tls connect calls,
-    // so this is a real, supported way to force IPv4.
-    const options = {
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: { user, pass },
-      connectionTimeout: 15_000,
-      greetingTimeout: 15_000,
-      socketTimeout: 15_000,
-      // Render resolves smtp.gmail.com to an IPv6 address but has no IPv6
-      // egress route, failing with ENETUNREACH before the connection even
-      // starts. Force IPv4, which Render does route correctly.
-      family: 4,
-    };
-    this.transporter = createTransport(options as SMTPTransport.Options);
+    return senderEmail;
+  }
 
-    this.transporter
-      .verify()
-      .then(() => this.logger.log('Ligação SMTP ao Gmail verificada com sucesso.'))
-      .catch((error: Error) =>
-        this.logger.error(`Falha ao verificar a ligação SMTP ao Gmail: ${error.message}`),
-      );
+  private async send(payload: BrevoEmailPayload, logLabel: string) {
+    const apiKey = process.env.BREVO_API_KEY;
+    if (!apiKey) return;
 
-    return this.transporter;
+    this.logger.log(`A enviar ${logLabel}...`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+
+    try {
+      const response = await fetch(BREVO_API_URL, {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Brevo respondeu ${response.status}: ${body}`);
+      }
+
+      this.logger.log(`${logLabel} enviado com sucesso.`);
+    } catch (error) {
+      this.logger.error(`Falha ao enviar ${logLabel}: ${(error as Error).message}`);
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async sendPaymentConfirmedEmail(input: PaymentConfirmedEmailInput) {
-    const transporter = this.getTransporter();
-    if (!transporter) return;
+    const senderEmail = this.getSenderEmail();
+    if (!senderEmail) return;
 
     const firstName = input.fullName.trim().split(/\s+/)[0];
     const confirmationLine = input.isSponsored
       ? 'A sua inscrição como patrocinado(a)/bolseiro(a) foi aprovada e está confirmada.'
       : 'O seu pagamento foi validado e a sua inscrição no DUNAMIS está confirmada.';
 
-    this.logger.log(`A enviar email de confirmação para ${input.to} (${input.registrationNumber})...`);
-    try {
-      await transporter.sendMail({
-        from: `"${SENDER_NAME}" <${process.env.GMAIL_USER}>`,
-        to: input.to,
+    await this.send(
+      {
+        sender: { name: SENDER_NAME, email: senderEmail },
+        to: [{ email: input.to }],
         subject: `Inscrição confirmada — ${input.registrationNumber} · DUNAMIS`,
-        text:
+        textContent:
           `Olá, ${firstName}.\n\n` +
           `${confirmationLine}\n\n` +
           `Número de inscrição: ${input.registrationNumber}\n\n` +
           `Em anexo encontra o comprovativo de inscrição com o QR Code. Apresente-o (impresso ou no telemóvel) no check-in, no dia do evento.\n\n` +
           `Até já,\nEquipa DUNAMIS`,
-        html: paymentConfirmedHtml(firstName, input.registrationNumber, confirmationLine),
-        attachments: [
+        htmlContent: paymentConfirmedHtml(firstName, input.registrationNumber, confirmationLine),
+        attachment: [
           {
-            filename: `${input.registrationNumber}-comprovativo.pdf`,
-            content: input.pdfBuffer,
-            contentType: 'application/pdf',
+            name: `${input.registrationNumber}-comprovativo.pdf`,
+            content: input.pdfBuffer.toString('base64'),
           },
         ],
-      });
-      this.logger.log(`Email de confirmação enviado para ${input.to} (${input.registrationNumber}).`);
-    } catch (error) {
-      this.logger.error(
-        `Falha ao enviar email de confirmação para ${input.to} (${input.registrationNumber}): ${(error as Error).message}`,
-      );
-      throw error;
-    }
+      },
+      `email de confirmação para ${input.to} (${input.registrationNumber})`,
+    );
   }
 
   async sendPaymentRejectedEmail(input: PaymentRejectedEmailInput) {
-    const transporter = this.getTransporter();
-    if (!transporter) return;
+    const senderEmail = this.getSenderEmail();
+    if (!senderEmail) return;
 
     const firstName = input.fullName.trim().split(/\s+/)[0];
 
-    this.logger.log(`A enviar email de rejeição para ${input.to} (${input.registrationNumber})...`);
-    try {
-      await transporter.sendMail({
-        from: `"${SENDER_NAME}" <${process.env.GMAIL_USER}>`,
-        to: input.to,
+    await this.send(
+      {
+        sender: { name: SENDER_NAME, email: senderEmail },
+        to: [{ email: input.to }],
         subject: `Não foi possível validar o seu pagamento — ${input.registrationNumber} · DUNAMIS`,
-        text:
+        textContent:
           `Olá, ${firstName}.\n\n` +
           `Não foi possível validar o comprovativo de pagamento associado à inscrição ${input.registrationNumber}.\n\n` +
           `Isto pode acontecer por o valor, a referência ou a imagem não corresponderem ao esperado. ` +
           `Contacte-nos para regularizar a situação.\n\n` +
           `Equipa DUNAMIS`,
-        html: paymentRejectedHtml(firstName, input.registrationNumber),
-      });
-      this.logger.log(`Email de rejeição enviado para ${input.to} (${input.registrationNumber}).`);
-    } catch (error) {
-      this.logger.error(
-        `Falha ao enviar email de rejeição para ${input.to} (${input.registrationNumber}): ${(error as Error).message}`,
-      );
-      throw error;
-    }
+        htmlContent: paymentRejectedHtml(firstName, input.registrationNumber),
+      },
+      `email de rejeição para ${input.to} (${input.registrationNumber})`,
+    );
   }
 }
 
