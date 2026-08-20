@@ -7,6 +7,7 @@ interface PaymentConfirmedEmailInput {
   to: string;
   fullName: string;
   registrationNumber: string;
+  isSponsored: boolean;
   pdfBuffer: Buffer;
 }
 
@@ -54,6 +55,9 @@ export class MailService {
     if (!transporter) return;
 
     const firstName = input.fullName.trim().split(/\s+/)[0];
+    const confirmationLine = input.isSponsored
+      ? 'A sua inscrição como patrocinado(a)/bolseiro(a) foi aprovada e está confirmada.'
+      : 'O seu pagamento foi validado e a sua inscrição no DUNAMIS está confirmada.';
 
     await transporter.sendMail({
       from: `"${SENDER_NAME}" <${process.env.GMAIL_USER}>`,
@@ -61,11 +65,11 @@ export class MailService {
       subject: `Inscrição confirmada — ${input.registrationNumber} · DUNAMIS`,
       text:
         `Olá, ${firstName}.\n\n` +
-        `O seu pagamento foi validado e a sua inscrição no DUNAMIS está confirmada.\n\n` +
+        `${confirmationLine}\n\n` +
         `Número de inscrição: ${input.registrationNumber}\n\n` +
         `Em anexo encontra o comprovativo de inscrição com o QR Code. Apresente-o (impresso ou no telemóvel) no check-in, no dia do evento.\n\n` +
         `Até já,\nEquipa DUNAMIS`,
-      html: paymentConfirmedHtml(firstName, input.registrationNumber),
+      html: paymentConfirmedHtml(firstName, input.registrationNumber, confirmationLine),
       attachments: [
         {
           filename: `${input.registrationNumber}-comprovativo.pdf`,
@@ -106,7 +110,7 @@ function emailShell(bodyHtml: string): string {
         <td align="center">
           <table role="presentation" width="480" style="background:#ffffff;border-radius:12px;overflow:hidden;">
             <tr>
-              <td style="background:#142a1d;padding:20px 32px;">
+              <td style="background:#126437;padding:20px 32px;">
                 <span style="color:#f4f4f1;font-size:16px;font-weight:bold;letter-spacing:0.5px;">DUNAMIS</span>
                 <div style="color:#c9d2c9;font-size:11px;margin-top:2px;">Terceira Igreja Baptista de Luanda</div>
               </td>
@@ -129,11 +133,15 @@ function emailShell(bodyHtml: string): string {
 </html>`;
 }
 
-function paymentConfirmedHtml(firstName: string, registrationNumber: string): string {
+function paymentConfirmedHtml(
+  firstName: string,
+  registrationNumber: string,
+  confirmationLine: string,
+): string {
   return emailShell(`
     <p style="margin:0 0 16px;">Olá, <strong>${firstName}</strong>.</p>
     <p style="margin:0 0 16px;">
-      O seu pagamento foi validado e a sua inscrição no <strong>DUNAMIS</strong> está confirmada.
+      ${confirmationLine}
     </p>
     <p style="margin:0 0 20px;">
       Número de inscrição: <strong style="font-family:monospace;">${registrationNumber}</strong>

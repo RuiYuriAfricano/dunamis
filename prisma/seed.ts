@@ -13,9 +13,28 @@ if (existsSync(envPath)) {
 
 const prisma = new PrismaClient();
 
-const TRANSPORT_STOPS = ["Nova Vida", "Viana", "Cidade", "Terceira Igreja Baptista"];
+const TRANSPORT_STOPS = [
+  "Nova Vida",
+  "Zango",
+  "Cidade",
+  "Terceira Igreja Baptista",
+  "Dangerreu",
+  "Kilamba/1",
+];
+
+// One-time renames for stops that already exist under an old name — applied
+// before the upsert below so a rerun never creates a duplicate under the new name.
+const TRANSPORT_STOP_RENAMES: [string, string][] = [["Viana", "Zango"]];
 
 async function main() {
+  for (const [oldName, newName] of TRANSPORT_STOP_RENAMES) {
+    const oldStop = await prisma.transportStop.findUnique({ where: { name: oldName } });
+    const newStop = await prisma.transportStop.findUnique({ where: { name: newName } });
+    if (oldStop && !newStop) {
+      await prisma.transportStop.update({ where: { id: oldStop.id }, data: { name: newName } });
+    }
+  }
+
   for (const name of TRANSPORT_STOPS) {
     await prisma.transportStop.upsert({
       where: { name },

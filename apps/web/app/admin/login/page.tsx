@@ -126,11 +126,7 @@ export default function AdminLoginPage() {
               {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button
-              type="submit"
-              className="h-11 w-full bg-gradient-to-r from-primary to-dunamis-green text-white hover:opacity-90"
-              disabled={loading}
-            >
+            <Button type="submit" className="h-11 w-full" disabled={loading}>
               {loading && <Spinner />}
               {loading ? "A entrar..." : "Entrar"}
             </Button>

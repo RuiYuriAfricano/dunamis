@@ -26,7 +26,7 @@ export function AdminNav() {
     <header className="animate-in fade-in slide-in-from-top-2 border-b bg-background duration-500">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
         <Link href="/admin/dashboard" className="flex items-center gap-2.5">
-          <Image src="/logo-dunamis.png" alt="DUNAMIS" width={438} height={170} className="h-7 w-auto" />
+          <Image src="/logo-dunamis-new.png" alt="DUNAMIS" width={621} height={278} className="h-7 w-auto" />
           <span className="h-5 w-px bg-border" aria-hidden />
           <Image
             src="/logo-manancial.png"

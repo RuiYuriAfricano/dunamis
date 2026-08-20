@@ -15,7 +15,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur animate-in fade-in slide-in-from-top-4 duration-700">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
         <Link href="/" className="flex items-center gap-2.5">
-          <Image src="/logo-dunamis.png" alt="DUNAMIS" width={438} height={170} priority className="h-8 w-auto" />
+          <Image src="/logo-dunamis-new.png" alt="DUNAMIS" width={621} height={278} priority className="h-8 w-auto" />
           <span className="h-6 w-px bg-border" aria-hidden />
           <Image
             src="/logo-manancial.png"

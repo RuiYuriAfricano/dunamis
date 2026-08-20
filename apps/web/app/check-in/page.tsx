@@ -85,7 +85,7 @@ export default function CheckInPage() {
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-dunamis-green/5 via-background to-background">
       <header className="flex items-center justify-between bg-dunamis-green px-6 py-3 text-dunamis-green-foreground">
         <div className="flex items-center gap-2.5">
-          <Image src="/logo-dunamis.png" alt="DUNAMIS" width={438} height={170} className="h-7 w-auto" />
+          <Image src="/logo-dunamis-new.png" alt="DUNAMIS" width={621} height={278} className="h-7 w-auto" />
           <span className="h-5 w-px bg-white/20" aria-hidden />
           <span className="text-sm font-medium text-dunamis-green-foreground/80">Check-in</span>
         </div>

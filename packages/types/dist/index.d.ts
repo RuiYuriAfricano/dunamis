@@ -26,13 +26,16 @@ export interface ParticipantSummary {
     whatsapp: string;
     email: string;
     isMemberTibl: boolean;
+    baptized: boolean;
+    allergicTo: string;
     firstTime: boolean;
     transportRequired: boolean;
     transportStop: TransportStopSummary | null;
     tentRequired: boolean;
     mattressRequired: boolean;
+    isSponsored: boolean;
     paymentAmount: number;
-    paymentProofPath: string;
+    paymentProofPath: string | null;
     paymentStatus: PaymentStatus;
     paymentReviewedAt: string | null;
     paymentReviewedBy: {
@@ -50,8 +53,9 @@ export interface ParticipantConfirmation {
     transportStop: TransportStopSummary | null;
     tentRequired: boolean;
     mattressRequired: boolean;
+    isSponsored: boolean;
     paymentAmount: number;
-    paymentProofPath: string;
+    paymentProofPath: string | null;
     paymentStatus: PaymentStatus;
     qrCodeDataUrl: string;
 }

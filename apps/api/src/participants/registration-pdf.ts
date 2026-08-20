@@ -12,6 +12,7 @@ interface RegistrationPdfInput {
   tentRequired: boolean;
   mattressRequired: boolean;
   paymentAmount: number;
+  isSponsored: boolean;
   qrToken: string;
 }
 
@@ -72,8 +73,13 @@ export async function generateRegistrationPdf(
     ['Paragem de transporte', input.transportStopName ?? 'Não solicitado'],
     ['Tenda', input.tentRequired ? 'Sim' : 'Não'],
     ['Colchão', input.mattressRequired ? 'Sim' : 'Não'],
-    ['Valor da inscrição', `${input.paymentAmount.toLocaleString('pt-PT')} Kz`],
-    ['Pagamento', 'Confirmado'],
+    [
+      'Valor da inscrição',
+      input.isSponsored
+        ? 'Patrocinado'
+        : `${input.paymentAmount.toLocaleString('pt-PT')} Kz`,
+    ],
+    ['Pagamento', input.isSponsored ? 'Patrocinado (aprovado)' : 'Confirmado'],
   ];
 
   doc.fontSize(10.5);

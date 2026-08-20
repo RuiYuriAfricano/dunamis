@@ -7,7 +7,7 @@ import { useForm, Controller, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,7 @@ const schema = z
     isMemberTibl: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     church: z.string().optional(),
     firstTime: z.enum(["true", "false"], { message: "Selecione uma opção." }),
+    baptized: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     fullName: z.string().min(3, "Indique o nome completo."),
     gender: z.enum(["MALE", "FEMALE"], { message: "Selecione o sexo." }),
     birthDate: z.string().min(1, "Indique a data de nascimento."),
@@ -44,10 +45,12 @@ const schema = z
       .string()
       .refine((v) => stripPhoneMask(v).length === 9, "Indique um número de WhatsApp válido (9 dígitos)."),
     email: z.email("Indique um email válido."),
+    allergicTo: z.string().optional(),
     transportRequired: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     transportStopId: z.string().optional(),
     tentRequired: z.boolean(),
     mattressRequired: z.boolean(),
+    isSponsored: z.enum(["true", "false"], { message: "Selecione uma opção." }),
   })
   .refine((data) => data.transportRequired === "false" || !!data.transportStopId, {
     message: "Selecione a paragem de transporte.",
@@ -61,11 +64,11 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 const STEPS: { label: string; fields: Path<FormValues>[] }[] = [
-  { label: "Participação", fields: ["isMemberTibl", "church", "firstTime"] },
-  { label: "Dados pessoais", fields: ["fullName", "gender", "birthDate", "phone", "whatsapp", "email"] },
+  { label: "Participação", fields: ["isMemberTibl", "church", "firstTime", "baptized"] },
+  { label: "Dados pessoais", fields: ["fullName", "gender", "birthDate", "phone", "whatsapp", "email", "allergicTo"] },
   { label: "Transporte", fields: ["transportRequired", "transportStopId"] },
   { label: "Alojamento", fields: ["tentRequired", "mattressRequired"] },
-  { label: "Pagamento", fields: [] },
+  { label: "Pagamento", fields: ["isSponsored"] },
 ];
 
 export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
@@ -90,16 +93,20 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
       isMemberTibl: "" as unknown as FormValues["isMemberTibl"],
       church: "",
       firstTime: "" as unknown as FormValues["firstTime"],
+      baptized: "" as unknown as FormValues["baptized"],
       gender: "" as unknown as FormValues["gender"],
+      allergicTo: "",
       transportStopId: "",
       tentRequired: false,
       mattressRequired: false,
       transportRequired: "false",
+      isSponsored: "false",
     },
   });
 
   const transportRequired = watch("transportRequired");
   const isMemberTibl = watch("isMemberTibl");
+  const isSponsored = watch("isSponsored");
 
   useEffect(() => {
     if (isMemberTibl === "true") {
@@ -119,7 +126,8 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
   }
 
   async function onSubmit(values: FormValues) {
-    if (!paymentProof) {
+    const sponsored = values.isSponsored === "true";
+    if (!sponsored && !paymentProof) {
       setPaymentProofError("Carregue o comprovativo de pagamento.");
       return;
     }
@@ -135,6 +143,8 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
       formData.set("email", values.email);
       formData.set("church", values.isMemberTibl === "true" ? TIBL_NAME : (values.church ?? ""));
       formData.set("isMemberTibl", String(values.isMemberTibl === "true"));
+      formData.set("baptized", String(values.baptized === "true"));
+      formData.set("allergicTo", values.allergicTo?.trim() ?? "");
       formData.set("firstTime", String(values.firstTime === "true"));
       formData.set("transportRequired", String(values.transportRequired === "true"));
       if (values.transportRequired === "true" && values.transportStopId) {
@@ -142,7 +152,10 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
       }
       formData.set("tentRequired", String(values.tentRequired));
       formData.set("mattressRequired", String(values.mattressRequired));
-      formData.set("paymentProof", paymentProof);
+      formData.set("isSponsored", String(sponsored));
+      if (!sponsored && paymentProof) {
+        formData.set("paymentProof", paymentProof);
+      }
 
       const confirmation = await apiFetch<ParticipantConfirmation>("/participants", {
         method: "POST",
@@ -223,6 +236,25 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
                 />
                 {errors.firstTime && <p className="text-sm text-destructive">{errors.firstTime.message}</p>}
               </div>
+
+              <div className="space-y-2">
+                <Label>É baptizado(a)?</Label>
+                <Controller
+                  control={control}
+                  name="baptized"
+                  render={({ field }) => (
+                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="true" /> Sim
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="false" /> Não
+                      </label>
+                    </RadioGroup>
+                  )}
+                />
+                {errors.baptized && <p className="text-sm text-destructive">{errors.baptized.message}</p>}
+              </div>
             </section>
           )}
 
@@ -302,6 +334,15 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" inputMode="email" autoComplete="email" {...register("email")} />
                 {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="allergicTo">É alérgico(a) a alguma coisa?</Label>
+                <Input
+                  id="allergicTo"
+                  placeholder="Ex.: amendoim, penicilina... (deixe em branco se não for alérgico)"
+                  {...register("allergicTo")}
+                />
               </div>
             </section>
           )}
@@ -394,38 +435,72 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
 
           {step === 4 && (
             <section className="animate-in fade-in slide-in-from-right-2 space-y-5 duration-300">
-              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-                <p className="text-sm text-muted-foreground">Valor da inscrição</p>
-                <p className="text-2xl font-bold text-primary">
-                  {(isMemberTibl === "true" ? PAYMENT_AMOUNT_MEMBER : PAYMENT_AMOUNT_VISITOR).toLocaleString("pt-PT")}{" "}
-                  Kz
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {isMemberTibl === "true"
-                    ? "Valor para membros da Terceira Igreja Baptista de Luanda."
-                    : "Valor para visitantes de outras igrejas."}
-                </p>
-              </div>
-
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>
-                  Efetue o pagamento via <span className="font-medium text-foreground">Multicaixa Express</span> para
-                  o número {EVENT_PHONE} e carregue o comprovativo (captura de ecrã ou PDF) abaixo.
-                </p>
-              </div>
-
               <div className="space-y-2">
-                <Label>Comprovativo de pagamento</Label>
-                <FileUpload
-                  value={paymentProof}
-                  onChange={(file) => {
-                    setPaymentProof(file);
-                    if (file) setPaymentProofError(null);
-                  }}
-                  accept="image/*,application/pdf"
-                  error={paymentProofError ?? undefined}
+                <Label>É patrocinado(a) ou bolseiro(a)?</Label>
+                <Controller
+                  control={control}
+                  name="isSponsored"
+                  render={({ field }) => (
+                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="true" /> Sim
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="false" /> Não
+                      </label>
+                    </RadioGroup>
+                  )}
                 />
+                {errors.isSponsored && <p className="text-sm text-destructive">{errors.isSponsored.message}</p>}
               </div>
+
+              {isSponsored === "true" ? (
+                <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm text-muted-foreground">
+                  <Gift className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+                  <p>
+                    Não é necessário carregar comprovativo de pagamento. A sua inscrição como patrocinado(a)/bolseiro(a)
+                    será revista pela organização — só depois de aprovada receberá o QR Code de acesso por email.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                    <p className="text-sm text-muted-foreground">Valor da inscrição</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {(isMemberTibl === "true" ? PAYMENT_AMOUNT_MEMBER : PAYMENT_AMOUNT_VISITOR).toLocaleString(
+                        "pt-PT",
+                      )}{" "}
+                      Kz
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {isMemberTibl === "true"
+                        ? "Valor para membros da Terceira Igreja Baptista de Luanda."
+                        : "Valor para visitantes de outras igrejas."}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>
+                      Efetue o pagamento via <span className="font-medium text-foreground">Multicaixa Express</span>{" "}
+                      para o número {EVENT_PHONE} ou por <span className="font-medium text-foreground">transferência
+                      bancária (IBAN)</span>, e carregue o comprovativo (captura de ecrã ou PDF) abaixo.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Comprovativo de pagamento</Label>
+                    <FileUpload
+                      value={paymentProof}
+                      onChange={(file) => {
+                        setPaymentProof(file);
+                        if (file) setPaymentProofError(null);
+                      }}
+                      accept="image/*,application/pdf"
+                      error={paymentProofError ?? undefined}
+                    />
+                  </div>
+                </>
+              )}
 
               <p className="flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
                 <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />

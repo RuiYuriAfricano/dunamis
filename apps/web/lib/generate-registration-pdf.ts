@@ -50,8 +50,13 @@ export async function generateRegistrationPdf(confirmation: ParticipantConfirmat
     ["Paragem de transporte", confirmation.transportStop?.name ?? "Não solicitado"],
     ["Tenda", confirmation.tentRequired ? "Sim" : "Não"],
     ["Colchão", confirmation.mattressRequired ? "Sim" : "Não"],
-    ["Valor da inscrição", `${confirmation.paymentAmount.toLocaleString("pt-PT")} Kz`],
-    ["Comprovativo", "Recebido"],
+    [
+      "Valor da inscrição",
+      confirmation.isSponsored
+        ? "Patrocinado"
+        : `${confirmation.paymentAmount.toLocaleString("pt-PT")} Kz`,
+    ],
+    ["Comprovativo", confirmation.isSponsored ? "Patrocinado (aprovado)" : "Recebido"],
   ];
 
   doc.setFontSize(10);

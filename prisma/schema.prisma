@@ -45,14 +45,17 @@ model Participant {
   email               String         @unique
   church              String
   isMemberTibl        Boolean        @map("is_member_tibl")
+  baptized            Boolean        @default(false) @map("baptized")
+  allergicTo          String         @default("") @map("allergic_to")
   firstTime           Boolean        @map("first_time")
   transportRequired   Boolean        @map("transport_required")
   transportStopId     String?        @map("transport_stop_id")
   transportStop       TransportStop? @relation(fields: [transportStopId], references: [id])
   tentRequired        Boolean        @map("tent_required")
   mattressRequired    Boolean        @map("mattress_required")
+  isSponsored         Boolean        @default(false) @map("is_sponsored")
   paymentAmount       Int            @map("payment_amount")
-  paymentProofPath    String         @map("payment_proof_path")
+  paymentProofPath    String?        @map("payment_proof_path")
   paymentStatus       PaymentStatus  @default(PENDING) @map("payment_status")
   paymentReviewedById String?        @map("payment_reviewed_by_id")
   paymentReviewedBy   User?          @relation("PaymentReviewer", fields: [paymentReviewedById], references: [id])

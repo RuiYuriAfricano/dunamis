@@ -6,6 +6,7 @@ import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
   ValidateIf,
 } from 'class-validator';
@@ -46,6 +47,14 @@ export class CreateParticipantDto {
 
   @Transform(toBoolean)
   @IsBoolean()
+  baptized!: boolean;
+
+  @IsOptional()
+  @IsString()
+  allergicTo?: string;
+
+  @Transform(toBoolean)
+  @IsBoolean()
   firstTime!: boolean;
 
   @Transform(toBoolean)
@@ -64,4 +73,8 @@ export class CreateParticipantDto {
   @Transform(toBoolean)
   @IsBoolean()
   mattressRequired!: boolean;
+
+  @Transform(toBoolean)
+  @IsBoolean()
+  isSponsored!: boolean;
 }

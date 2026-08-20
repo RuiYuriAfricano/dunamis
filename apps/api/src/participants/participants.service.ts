@@ -41,11 +41,14 @@ const PARTICIPANT_SUMMARY_SELECT = {
   email: true,
   birthDate: true,
   isMemberTibl: true,
+  baptized: true,
+  allergicTo: true,
   firstTime: true,
   transportRequired: true,
   transportStop: { select: { id: true, name: true } },
   tentRequired: true,
   mattressRequired: true,
+  isSponsored: true,
   paymentAmount: true,
   paymentProofPath: true,
   paymentStatus: true,
@@ -65,7 +68,10 @@ export class ParticipantsService {
     private readonly mail: MailService,
   ) {}
 
-  async create(dto: CreateParticipantDto, paymentProof: Express.Multer.File) {
+  async create(
+    dto: CreateParticipantDto,
+    paymentProof: Express.Multer.File | undefined,
+  ) {
     if (dto.transportRequired && dto.transportStopId) {
       const stop = await this.prisma.transportStop.findUnique({
         where: { id: dto.transportStopId },
@@ -75,13 +81,23 @@ export class ParticipantsService {
       }
     }
 
+    if (!dto.isSponsored && !paymentProof) {
+      throw new BadRequestException('Comprovativo de pagamento é obrigatório.');
+    }
+
     // Checked before the (slower, network-bound) proof upload so a duplicate
     // registration fails fast without wasting a Supabase Storage write.
     await this.assertContactIsUnique(dto.email, dto.phone, dto.whatsapp);
 
+    // Sponsored/bolseiro participants don't pay, so there's no proof to store —
+    // they still go through the same PENDING → admin review flow before the
+    // QR/email is released, just reviewing the sponsorship instead of a payment.
     // Uploaded outside the transaction: it's a network/disk call, not something
     // that should hold a database transaction open.
-    const paymentProofPath = await storePaymentProof(paymentProof);
+    const paymentProofPath =
+      dto.isSponsored || !paymentProof
+        ? null
+        : await storePaymentProof(paymentProof);
 
     let participant: Prisma.ParticipantGetPayload<{
       include: { transportStop: { select: { id: true; name: true } } };
@@ -94,9 +110,11 @@ export class ParticipantsService {
 
         const registrationNumber = `DUN-${new Date().getFullYear()}-${String(value).padStart(6, '0')}`;
         const qrToken = nanoid(24);
-        const paymentAmount = dto.isMemberTibl
-          ? PAYMENT_AMOUNT_MEMBER
-          : PAYMENT_AMOUNT_VISITOR;
+        const paymentAmount = dto.isSponsored
+          ? 0
+          : dto.isMemberTibl
+            ? PAYMENT_AMOUNT_MEMBER
+            : PAYMENT_AMOUNT_VISITOR;
 
         return tx.participant.create({
           data: {
@@ -109,11 +127,14 @@ export class ParticipantsService {
             email: dto.email,
             church: dto.church,
             isMemberTibl: dto.isMemberTibl,
+            baptized: dto.baptized,
+            allergicTo: dto.allergicTo ?? '',
             firstTime: dto.firstTime,
             transportRequired: dto.transportRequired,
             transportStopId: dto.transportRequired ? dto.transportStopId : null,
             tentRequired: dto.tentRequired,
             mattressRequired: dto.mattressRequired,
+            isSponsored: dto.isSponsored,
             paymentAmount,
             paymentProofPath,
             qrToken,
@@ -146,6 +167,7 @@ export class ParticipantsService {
       transportStop: participant.transportStop,
       tentRequired: participant.tentRequired,
       mattressRequired: participant.mattressRequired,
+      isSponsored: participant.isSponsored,
       paymentAmount: participant.paymentAmount,
       paymentProofPath: participant.paymentProofPath,
       paymentStatus: participant.paymentStatus,
@@ -202,6 +224,7 @@ export class ParticipantsService {
       transportStop: participant.transportStop,
       tentRequired: participant.tentRequired,
       mattressRequired: participant.mattressRequired,
+      isSponsored: participant.isSponsored,
       paymentAmount: participant.paymentAmount,
       paymentProofPath: participant.paymentProofPath,
       paymentStatus: participant.paymentStatus,
@@ -286,6 +309,7 @@ export class ParticipantsService {
       tentRequired: participant.tentRequired,
       mattressRequired: participant.mattressRequired,
       paymentAmount: participant.paymentAmount,
+      isSponsored: participant.isSponsored,
       qrToken: participant.qrToken,
     });
 
@@ -293,6 +317,7 @@ export class ParticipantsService {
       to: participant.email,
       fullName: participant.fullName,
       registrationNumber: participant.registrationNumber,
+      isSponsored: participant.isSponsored,
       pdfBuffer,
     });
   }
@@ -328,11 +353,15 @@ export class ParticipantsService {
       { header: 'WhatsApp', key: 'whatsapp', width: 16 },
       { header: 'Email', key: 'email', width: 28 },
       { header: 'Igreja', key: 'church', width: 26 },
+      { header: 'Membro TIBL', key: 'isMemberTibl', width: 14 },
+      { header: 'Baptizado', key: 'baptized', width: 12 },
+      { header: 'Alérgico a', key: 'allergicTo', width: 24 },
       { header: 'Primeira Participação', key: 'firstTime', width: 20 },
       { header: 'Transporte', key: 'transportRequired', width: 14 },
       { header: 'Paragem', key: 'transportStop', width: 22 },
       { header: 'Tenda', key: 'tentRequired', width: 10 },
       { header: 'Colchão', key: 'mattressRequired', width: 10 },
+      { header: 'Patrocinado', key: 'isSponsored', width: 14 },
       { header: 'Valor (Kz)', key: 'paymentAmount', width: 12 },
       { header: 'Comprovativo', key: 'paymentProofPath', width: 30 },
       { header: 'Estado do Pagamento', key: 'paymentStatus', width: 18 },
@@ -357,13 +386,17 @@ export class ParticipantsService {
         whatsapp: p.whatsapp,
         email: p.email,
         church: p.church,
+        isMemberTibl: p.isMemberTibl ? 'Sim' : 'Não',
+        baptized: p.baptized ? 'Sim' : 'Não',
+        allergicTo: p.allergicTo || '-',
         firstTime: p.firstTime ? 'Sim' : 'Não',
         transportRequired: p.transportRequired ? 'Sim' : 'Não',
         transportStop: p.transportStop?.name ?? '-',
         tentRequired: p.tentRequired ? 'Sim' : 'Não',
         mattressRequired: p.mattressRequired ? 'Sim' : 'Não',
+        isSponsored: p.isSponsored ? 'Sim' : 'Não',
         paymentAmount: p.paymentAmount,
-        paymentProofPath: p.paymentProofPath,
+        paymentProofPath: p.paymentProofPath ?? '-',
         paymentStatus: PAYMENT_STATUS_LABELS[p.paymentStatus],
         checkedIn: p.checkedIn ? 'Sim' : 'Não',
         createdAt: p.createdAt.toISOString().slice(0, 16).replace('T', ' '),
@@ -396,6 +429,9 @@ export class ParticipantsService {
     if (query.firstTime !== undefined) where.firstTime = query.firstTime;
     if (query.isMemberTibl !== undefined)
       where.isMemberTibl = query.isMemberTibl;
+    if (query.baptized !== undefined) where.baptized = query.baptized;
+    if (query.isSponsored !== undefined)
+      where.isSponsored = query.isSponsored;
     if (query.transportStopId) where.transportStopId = query.transportStopId;
     if (query.transportRequired !== undefined)
       where.transportRequired = query.transportRequired;

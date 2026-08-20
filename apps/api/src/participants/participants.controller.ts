@@ -11,7 +11,6 @@ import {
   UploadedFile,
   Header,
   StreamableFile,
-  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
@@ -38,9 +37,6 @@ export class ParticipantsController {
     @Body() dto: CreateParticipantDto,
     @UploadedFile() paymentProof?: Express.Multer.File,
   ) {
-    if (!paymentProof) {
-      throw new BadRequestException('Comprovativo de pagamento é obrigatório.');
-    }
     return this.participantsService.create(dto, paymentProof);
   }
 

@@ -63,9 +63,11 @@ interface Filters {
   transportStopId: string;
   firstTime: string;
   isMemberTibl: string;
+  baptized: string;
   transportRequired: string;
   tentRequired: string;
   mattressRequired: string;
+  isSponsored: string;
   checkedIn: string;
   paymentStatus: string;
 }
@@ -76,9 +78,11 @@ const DEFAULT_FILTERS: Filters = {
   transportStopId: "all",
   firstTime: "all",
   isMemberTibl: "all",
+  baptized: "all",
   transportRequired: "all",
   tentRequired: "all",
   mattressRequired: "all",
+  isSponsored: "all",
   checkedIn: "all",
   paymentStatus: "all",
 };
@@ -119,7 +123,7 @@ export default function ParticipantsPage() {
     if (filters.gender !== "all") params.set("gender", filters.gender);
     if (filters.transportStopId !== "all") params.set("transportStopId", filters.transportStopId);
     if (filters.paymentStatus !== "all") params.set("paymentStatus", filters.paymentStatus);
-    for (const key of ["firstTime", "isMemberTibl", "transportRequired", "tentRequired", "mattressRequired", "checkedIn"] as const) {
+    for (const key of ["firstTime", "isMemberTibl", "baptized", "transportRequired", "tentRequired", "mattressRequired", "isSponsored", "checkedIn"] as const) {
       if (filters[key] !== "all") params.set(key, filters[key]);
     }
     params.set("page", String(page));
@@ -256,9 +260,11 @@ export default function ParticipantsPage() {
           [
             ["firstTime", "Primeira vez"],
             ["isMemberTibl", "Membro TIBL"],
+            ["baptized", "Baptizado"],
             ["transportRequired", "Transporte"],
             ["tentRequired", "Tenda"],
             ["mattressRequired", "Colchão"],
+            ["isSponsored", "Patrocinado"],
             ["checkedIn", "Check-in"],
           ] as const
         ).map(([key, label]) => (
@@ -290,13 +296,16 @@ export default function ParticipantsPage() {
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Idade</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Igreja</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Membro TIBL</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Baptizado</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">1ª vez</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Telefone</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">WhatsApp</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Email</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Alérgico a</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Paragem</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Tenda</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Colchão</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Patrocinado</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Pagamento</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Check-in</TableHead>
             </TableRow>
@@ -304,7 +313,7 @@ export default function ParticipantsPage() {
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={14} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={17} className="py-10 text-center text-muted-foreground">
                   <div className="flex items-center justify-center gap-2">
                     <Spinner className="size-4" />A carregar inscritos...
                   </div>
@@ -314,7 +323,7 @@ export default function ParticipantsPage() {
 
             {!loading && data?.data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={14} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={17} className="py-8 text-center text-muted-foreground">
                   Nenhum inscrito encontrado.
                 </TableCell>
               </TableRow>
@@ -342,13 +351,20 @@ export default function ParticipantsPage() {
                     <TableCell className="text-sm">
                       <Badge variant={p.isMemberTibl ? "default" : "secondary"}>{p.isMemberTibl ? "Sim" : "Não"}</Badge>
                     </TableCell>
+                    <TableCell className="text-sm">
+                      <Badge variant={p.baptized ? "default" : "secondary"}>{p.baptized ? "Sim" : "Não"}</Badge>
+                    </TableCell>
                     <TableCell className="text-sm">{p.firstTime ? "Sim" : "Não"}</TableCell>
                     <TableCell className="text-sm">{p.phone}</TableCell>
                     <TableCell className="text-sm">{p.whatsapp}</TableCell>
                     <TableCell className="text-sm">{p.email}</TableCell>
+                    <TableCell className="text-sm">{p.allergicTo || "-"}</TableCell>
                     <TableCell className="text-sm">{p.transportStop?.name ?? "-"}</TableCell>
                     <TableCell className="text-sm">{p.tentRequired ? "Sim" : "Não"}</TableCell>
                     <TableCell className="text-sm">{p.mattressRequired ? "Sim" : "Não"}</TableCell>
+                    <TableCell className="text-sm">
+                      <Badge variant={p.isSponsored ? "default" : "secondary"}>{p.isSponsored ? "Sim" : "Não"}</Badge>
+                    </TableCell>
                     <TableCell>
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
@@ -363,15 +379,21 @@ export default function ParticipantsPage() {
                             {PAYMENT_STATUS_LABEL[p.paymentStatus]}
                           </span>
                         </div>
-                        <a
-                          href={paymentProofUrl(p.paymentProofPath)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-primary underline underline-offset-2"
-                        >
-                          <FileText className="size-3" />
-                          Ver comprovativo
-                        </a>
+                        {p.paymentProofPath ? (
+                          <a
+                            href={paymentProofUrl(p.paymentProofPath)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary underline underline-offset-2"
+                          >
+                            <FileText className="size-3" />
+                            Ver comprovativo
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            {p.isSponsored ? "Sem comprovativo (patrocinado)" : "Sem comprovativo"}
+                          </span>
+                        )}
                         {p.paymentStatus === PaymentStatus.PENDING && (
                           <div className="flex gap-1.5 pt-0.5">
                             <Button

@@ -85,7 +85,7 @@ export function ConfirmationCard({ confirmation }: { confirmation: ParticipantCo
           </p>
           <p>
             <span className="text-muted-foreground">Valor da inscrição: </span>
-            {confirmation.paymentAmount.toLocaleString("pt-PT")} Kz
+            {confirmation.isSponsored ? "Patrocinado" : `${confirmation.paymentAmount.toLocaleString("pt-PT")} Kz`}
           </p>
         </div>
 
@@ -98,8 +98,9 @@ export function ConfirmationCard({ confirmation }: { confirmation: ParticipantCo
 
         {confirmation.paymentStatus === PaymentStatus.PENDING && (
           <p className="text-center text-sm text-muted-foreground">
-            Recebemos o seu comprovativo e está a aguardar validação pela organização. Assim que for
-            validado, receberá por email o comprovativo de inscrição com o QR Code de acesso.
+            {confirmation.isSponsored
+              ? "A sua inscrição como patrocinado(a)/bolseiro(a) está a aguardar aprovação pela organização. Assim que for aprovada, receberá por email o comprovativo de inscrição com o QR Code de acesso."
+              : "Recebemos o seu comprovativo e está a aguardar validação pela organização. Assim que for validado, receberá por email o comprovativo de inscrição com o QR Code de acesso."}
           </p>
         )}
 

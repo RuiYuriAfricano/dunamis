@@ -6,7 +6,7 @@ export function SiteFooter() {
     <footer className="border-t bg-muted/30 py-10">
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-6 text-center">
         <div className="flex items-center gap-4">
-          <Image src="/logo-dunamis.png" alt="DUNAMIS" width={438} height={170} className="h-8 w-auto" />
+          <Image src="/logo-dunamis-new.png" alt="DUNAMIS" width={621} height={278} className="h-8 w-auto" />
           <span className="h-6 w-px bg-border" />
           <Image
             src="/logo-manancial.png"

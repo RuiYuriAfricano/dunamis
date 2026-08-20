@@ -39,6 +39,16 @@ export class QueryParticipantsDto {
   isMemberTibl?: boolean;
 
   @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  baptized?: boolean;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  isSponsored?: boolean;
+
+  @IsOptional()
   @IsString()
   transportStopId?: string;
 
