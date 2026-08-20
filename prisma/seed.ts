@@ -19,12 +19,15 @@ const TRANSPORT_STOPS = [
   "Cidade",
   "Terceira Igreja Baptista",
   "Dangerreu",
-  "Kilamba/1",
+  "Kilamba/11",
 ];
 
 // One-time renames for stops that already exist under an old name — applied
 // before the upsert below so a rerun never creates a duplicate under the new name.
-const TRANSPORT_STOP_RENAMES: [string, string][] = [["Viana", "Zango"]];
+const TRANSPORT_STOP_RENAMES: [string, string][] = [
+  ["Viana", "Zango"],
+  ["Kilamba/1", "Kilamba/11"],
+];
 
 async function main() {
   for (const [oldName, newName] of TRANSPORT_STOP_RENAMES) {
