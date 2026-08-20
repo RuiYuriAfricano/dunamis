@@ -2,17 +2,21 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import * as QRCode from 'qrcode';
 import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { CreateParticipantDto } from './dto/create-participant.dto';
 import { LookupParticipantDto } from './dto/lookup-participant.dto';
 import { QueryParticipantsDto } from './dto/query-participants.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 import { storePaymentProof } from './payment-proof-storage';
+import { generateRegistrationPdf } from './registration-pdf';
 
 const PAYMENT_AMOUNT_MEMBER = 5000;
 const PAYMENT_AMOUNT_VISITOR = 2500;
@@ -54,7 +58,12 @@ const PARTICIPANT_SUMMARY_SELECT = {
 
 @Injectable()
 export class ParticipantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ParticipantsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+  ) {}
 
   async create(dto: CreateParticipantDto, paymentProof: Express.Multer.File) {
     if (dto.transportRequired && dto.transportStopId) {
@@ -66,44 +75,63 @@ export class ParticipantsService {
       }
     }
 
+    // Checked before the (slower, network-bound) proof upload so a duplicate
+    // registration fails fast without wasting a Supabase Storage write.
+    await this.assertContactIsUnique(dto.email, dto.phone, dto.whatsapp);
+
     // Uploaded outside the transaction: it's a network/disk call, not something
     // that should hold a database transaction open.
     const paymentProofPath = await storePaymentProof(paymentProof);
 
-    const participant = await this.prisma.$transaction(async (tx) => {
-      const [{ value }] = await tx.$queryRaw<
-        { value: number }[]
-      >`SELECT nextval('registration_number_seq')::int AS value`;
+    let participant: Prisma.ParticipantGetPayload<{
+      include: { transportStop: { select: { id: true; name: true } } };
+    }>;
+    try {
+      participant = await this.prisma.$transaction(async (tx) => {
+        const [{ value }] = await tx.$queryRaw<
+          { value: number }[]
+        >`SELECT nextval('registration_number_seq')::int AS value`;
 
-      const registrationNumber = `DUN-${new Date().getFullYear()}-${String(value).padStart(6, '0')}`;
-      const qrToken = nanoid(24);
-      const paymentAmount = dto.isMemberTibl
-        ? PAYMENT_AMOUNT_MEMBER
-        : PAYMENT_AMOUNT_VISITOR;
+        const registrationNumber = `DUN-${new Date().getFullYear()}-${String(value).padStart(6, '0')}`;
+        const qrToken = nanoid(24);
+        const paymentAmount = dto.isMemberTibl
+          ? PAYMENT_AMOUNT_MEMBER
+          : PAYMENT_AMOUNT_VISITOR;
 
-      return tx.participant.create({
-        data: {
-          registrationNumber,
-          fullName: dto.fullName,
-          gender: dto.gender,
-          birthDate: new Date(dto.birthDate),
-          phone: dto.phone,
-          whatsapp: dto.whatsapp,
-          email: dto.email,
-          church: dto.church,
-          isMemberTibl: dto.isMemberTibl,
-          firstTime: dto.firstTime,
-          transportRequired: dto.transportRequired,
-          transportStopId: dto.transportRequired ? dto.transportStopId : null,
-          tentRequired: dto.tentRequired,
-          mattressRequired: dto.mattressRequired,
-          paymentAmount,
-          paymentProofPath,
-          qrToken,
-        },
-        include: { transportStop: { select: { id: true, name: true } } },
+        return tx.participant.create({
+          data: {
+            registrationNumber,
+            fullName: dto.fullName,
+            gender: dto.gender,
+            birthDate: new Date(dto.birthDate),
+            phone: dto.phone,
+            whatsapp: dto.whatsapp,
+            email: dto.email,
+            church: dto.church,
+            isMemberTibl: dto.isMemberTibl,
+            firstTime: dto.firstTime,
+            transportRequired: dto.transportRequired,
+            transportStopId: dto.transportRequired ? dto.transportStopId : null,
+            tentRequired: dto.tentRequired,
+            mattressRequired: dto.mattressRequired,
+            paymentAmount,
+            paymentProofPath,
+            qrToken,
+          },
+          include: { transportStop: { select: { id: true, name: true } } },
+        });
       });
-    });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Este email, telefone ou WhatsApp já está associado a outra inscrição.',
+        );
+      }
+      throw error;
+    }
 
     const qrCodeDataUrl = await QRCode.toDataURL(participant.qrToken, {
       margin: 1,
@@ -120,8 +148,30 @@ export class ParticipantsService {
       mattressRequired: participant.mattressRequired,
       paymentAmount: participant.paymentAmount,
       paymentProofPath: participant.paymentProofPath,
+      paymentStatus: participant.paymentStatus,
       qrCodeDataUrl,
     };
+  }
+
+  private async assertContactIsUnique(
+    email: string,
+    phone: string,
+    whatsapp: string,
+  ) {
+    const existing = await this.prisma.participant.findFirst({
+      where: { OR: [{ email }, { phone }, { whatsapp }] },
+      select: { email: true, phone: true, whatsapp: true },
+    });
+
+    if (!existing) return;
+
+    if (existing.email === email) {
+      throw new ConflictException('Este email já está associado a outra inscrição.');
+    }
+    if (existing.phone === phone) {
+      throw new ConflictException('Este telefone já está associado a outra inscrição.');
+    }
+    throw new ConflictException('Este WhatsApp já está associado a outra inscrição.');
   }
 
   async lookup(dto: LookupParticipantDto) {
@@ -154,6 +204,7 @@ export class ParticipantsService {
       mattressRequired: participant.mattressRequired,
       paymentAmount: participant.paymentAmount,
       paymentProofPath: participant.paymentProofPath,
+      paymentStatus: participant.paymentStatus,
       qrCodeDataUrl,
     };
   }
@@ -184,13 +235,14 @@ export class ParticipantsService {
   ) {
     const participant = await this.prisma.participant.findUnique({
       where: { id },
+      include: { transportStop: { select: { id: true, name: true } } },
     });
 
     if (!participant) {
       throw new NotFoundException('Participante não encontrado.');
     }
 
-    return this.prisma.participant.update({
+    const updated = await this.prisma.participant.update({
       where: { id },
       data: {
         paymentStatus: dto.status,
@@ -198,6 +250,50 @@ export class ParticipantsService {
         paymentReviewedAt: new Date(),
       },
       select: PARTICIPANT_SUMMARY_SELECT,
+    });
+
+    // Email delivery never blocks or fails the review action itself — the
+    // payment status is already saved regardless of whether Gmail is reachable.
+    if (dto.status === 'CONFIRMED') {
+      this.sendConfirmationEmail(participant).catch((error) =>
+        this.logger.error(`Falha ao enviar email de confirmação: ${error.message}`),
+      );
+    } else if (dto.status === 'REJECTED') {
+      this.mail
+        .sendPaymentRejectedEmail({
+          to: participant.email,
+          fullName: participant.fullName,
+          registrationNumber: participant.registrationNumber,
+        })
+        .catch((error) =>
+          this.logger.error(`Falha ao enviar email de rejeição: ${error.message}`),
+        );
+    }
+
+    return updated;
+  }
+
+  private async sendConfirmationEmail(
+    participant: Prisma.ParticipantGetPayload<{
+      include: { transportStop: { select: { id: true; name: true } } };
+    }>,
+  ) {
+    const pdfBuffer = await generateRegistrationPdf({
+      registrationNumber: participant.registrationNumber,
+      fullName: participant.fullName,
+      church: participant.church,
+      transportStopName: participant.transportStop?.name ?? null,
+      tentRequired: participant.tentRequired,
+      mattressRequired: participant.mattressRequired,
+      paymentAmount: participant.paymentAmount,
+      qrToken: participant.qrToken,
+    });
+
+    await this.mail.sendPaymentConfirmedEmail({
+      to: participant.email,
+      fullName: participant.fullName,
+      registrationNumber: participant.registrationNumber,
+      pdfBuffer,
     });
   }
 
@@ -288,6 +384,8 @@ export class ParticipantsService {
         { fullName: { contains: query.search, mode: 'insensitive' } },
         { registrationNumber: { contains: query.search, mode: 'insensitive' } },
         { phone: { contains: query.search, mode: 'insensitive' } },
+        { whatsapp: { contains: query.search, mode: 'insensitive' } },
+        { email: { contains: query.search, mode: 'insensitive' } },
         { church: { contains: query.search, mode: 'insensitive' } },
       ];
     }
@@ -296,6 +394,8 @@ export class ParticipantsService {
     if (query.church)
       where.church = { contains: query.church, mode: 'insensitive' };
     if (query.firstTime !== undefined) where.firstTime = query.firstTime;
+    if (query.isMemberTibl !== undefined)
+      where.isMemberTibl = query.isMemberTibl;
     if (query.transportStopId) where.transportStopId = query.transportStopId;
     if (query.transportRequired !== undefined)
       where.transportRequired = query.transportRequired;

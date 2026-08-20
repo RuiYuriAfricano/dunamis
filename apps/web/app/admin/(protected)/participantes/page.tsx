@@ -62,6 +62,7 @@ interface Filters {
   gender: string;
   transportStopId: string;
   firstTime: string;
+  isMemberTibl: string;
   transportRequired: string;
   tentRequired: string;
   mattressRequired: string;
@@ -74,6 +75,7 @@ const DEFAULT_FILTERS: Filters = {
   gender: "all",
   transportStopId: "all",
   firstTime: "all",
+  isMemberTibl: "all",
   transportRequired: "all",
   tentRequired: "all",
   mattressRequired: "all",
@@ -86,6 +88,15 @@ const PAGE_SIZE = 25;
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? "") + (parts.at(-1)?.[0] ?? "")).toUpperCase();
+}
+
+function calculateAge(birthDate: string): number {
+  const now = new Date();
+  const birth = new Date(birthDate);
+  let age = now.getFullYear() - birth.getFullYear();
+  const monthDiff = now.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) age -= 1;
+  return age;
 }
 
 export default function ParticipantsPage() {
@@ -108,7 +119,7 @@ export default function ParticipantsPage() {
     if (filters.gender !== "all") params.set("gender", filters.gender);
     if (filters.transportStopId !== "all") params.set("transportStopId", filters.transportStopId);
     if (filters.paymentStatus !== "all") params.set("paymentStatus", filters.paymentStatus);
-    for (const key of ["firstTime", "transportRequired", "tentRequired", "mattressRequired", "checkedIn"] as const) {
+    for (const key of ["firstTime", "isMemberTibl", "transportRequired", "tentRequired", "mattressRequired", "checkedIn"] as const) {
       if (filters[key] !== "all") params.set(key, filters[key]);
     }
     params.set("page", String(page));
@@ -244,6 +255,7 @@ export default function ParticipantsPage() {
         {(
           [
             ["firstTime", "Primeira vez"],
+            ["isMemberTibl", "Membro TIBL"],
             ["transportRequired", "Transporte"],
             ["tentRequired", "Tenda"],
             ["mattressRequired", "Colchão"],
@@ -269,14 +281,19 @@ export default function ParticipantsPage() {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-xl border shadow-sm">
+      <div className="overflow-x-auto rounded-xl border shadow-sm">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Nº Inscrição</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Nome</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Idade</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Igreja</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Membro TIBL</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">1ª vez</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Telefone</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">WhatsApp</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Email</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Paragem</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Tenda</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Colchão</TableHead>
@@ -287,7 +304,7 @@ export default function ParticipantsPage() {
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={14} className="py-10 text-center text-muted-foreground">
                   <div className="flex items-center justify-center gap-2">
                     <Spinner className="size-4" />A carregar inscritos...
                   </div>
@@ -297,7 +314,7 @@ export default function ParticipantsPage() {
 
             {!loading && data?.data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={14} className="py-8 text-center text-muted-foreground">
                   Nenhum inscrito encontrado.
                 </TableCell>
               </TableRow>
@@ -320,8 +337,15 @@ export default function ParticipantsPage() {
                         </div>
                       </div>
                     </TableCell>
+                    <TableCell className="text-sm tabular-nums">{calculateAge(p.birthDate)}</TableCell>
                     <TableCell className="text-sm">{p.church}</TableCell>
+                    <TableCell className="text-sm">
+                      <Badge variant={p.isMemberTibl ? "default" : "secondary"}>{p.isMemberTibl ? "Sim" : "Não"}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">{p.firstTime ? "Sim" : "Não"}</TableCell>
                     <TableCell className="text-sm">{p.phone}</TableCell>
+                    <TableCell className="text-sm">{p.whatsapp}</TableCell>
+                    <TableCell className="text-sm">{p.email}</TableCell>
                     <TableCell className="text-sm">{p.transportStop?.name ?? "-"}</TableCell>
                     <TableCell className="text-sm">{p.tentRequired ? "Sim" : "Não"}</TableCell>
                     <TableCell className="text-sm">{p.mattressRequired ? "Sim" : "Não"}</TableCell>

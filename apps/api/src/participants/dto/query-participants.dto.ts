@@ -34,6 +34,11 @@ export class QueryParticipantsDto {
   firstTime?: boolean;
 
   @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  isMemberTibl?: boolean;
+
+  @IsOptional()
   @IsString()
   transportStopId?: string;
 

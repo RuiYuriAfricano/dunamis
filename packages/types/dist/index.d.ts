@@ -20,8 +20,12 @@ export interface ParticipantSummary {
     registrationNumber: string;
     fullName: string;
     gender: Gender;
+    birthDate: string;
     church: string;
     phone: string;
+    whatsapp: string;
+    email: string;
+    isMemberTibl: boolean;
     firstTime: boolean;
     transportRequired: boolean;
     transportStop: TransportStopSummary | null;
@@ -48,6 +52,7 @@ export interface ParticipantConfirmation {
     mattressRequired: boolean;
     paymentAmount: number;
     paymentProofPath: string;
+    paymentStatus: PaymentStatus;
     qrCodeDataUrl: string;
 }
 export interface TransportStopStat {

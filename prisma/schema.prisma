@@ -40,9 +40,9 @@ model Participant {
   fullName            String         @map("full_name")
   gender              Gender
   birthDate           DateTime       @map("birth_date")
-  phone               String
-  whatsapp            String
-  email               String
+  phone               String         @unique
+  whatsapp            String         @unique
+  email               String         @unique
   church              String
   isMemberTibl        Boolean        @map("is_member_tibl")
   firstTime           Boolean        @map("first_time")
@@ -67,7 +67,6 @@ model Participant {
   updatedAt           DateTime       @updatedAt @map("updated_at")
 
   @@index([fullName])
-  @@index([phone])
   @@index([church])
   @@index([checkedIn])
   @@map("participants")

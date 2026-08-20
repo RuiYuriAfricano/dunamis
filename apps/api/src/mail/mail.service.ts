@@ -1,0 +1,162 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { createTransport, type Transporter } from 'nodemailer';
+
+const SENDER_NAME = 'DUNAMIS · Terceira Igreja Baptista de Luanda';
+
+interface PaymentConfirmedEmailInput {
+  to: string;
+  fullName: string;
+  registrationNumber: string;
+  pdfBuffer: Buffer;
+}
+
+interface PaymentRejectedEmailInput {
+  to: string;
+  fullName: string;
+  registrationNumber: string;
+}
+
+@Injectable()
+export class MailService {
+  private readonly logger = new Logger(MailService.name);
+  private transporter: Transporter | null | undefined;
+
+  /**
+   * Returns a cached SMTP transporter if GMAIL_USER/GMAIL_APP_PASSWORD are
+   * configured, otherwise null. Without them, emails are skipped (logged
+   * instead) — convenient for local development without Gmail credentials.
+   */
+  private getTransporter(): Transporter | null {
+    if (this.transporter !== undefined) return this.transporter;
+
+    const user = process.env.GMAIL_USER;
+    const pass = process.env.GMAIL_APP_PASSWORD;
+
+    if (!user || !pass) {
+      this.logger.warn(
+        'GMAIL_USER/GMAIL_APP_PASSWORD não definidos — emails de validação de pagamento não serão enviados.',
+      );
+      this.transporter = null;
+      return null;
+    }
+
+    this.transporter = createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: { user, pass },
+    });
+    return this.transporter;
+  }
+
+  async sendPaymentConfirmedEmail(input: PaymentConfirmedEmailInput) {
+    const transporter = this.getTransporter();
+    if (!transporter) return;
+
+    const firstName = input.fullName.trim().split(/\s+/)[0];
+
+    await transporter.sendMail({
+      from: `"${SENDER_NAME}" <${process.env.GMAIL_USER}>`,
+      to: input.to,
+      subject: `Inscrição confirmada — ${input.registrationNumber} · DUNAMIS`,
+      text:
+        `Olá, ${firstName}.\n\n` +
+        `O seu pagamento foi validado e a sua inscrição no DUNAMIS está confirmada.\n\n` +
+        `Número de inscrição: ${input.registrationNumber}\n\n` +
+        `Em anexo encontra o comprovativo de inscrição com o QR Code. Apresente-o (impresso ou no telemóvel) no check-in, no dia do evento.\n\n` +
+        `Até já,\nEquipa DUNAMIS`,
+      html: paymentConfirmedHtml(firstName, input.registrationNumber),
+      attachments: [
+        {
+          filename: `${input.registrationNumber}-comprovativo.pdf`,
+          content: input.pdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+  }
+
+  async sendPaymentRejectedEmail(input: PaymentRejectedEmailInput) {
+    const transporter = this.getTransporter();
+    if (!transporter) return;
+
+    const firstName = input.fullName.trim().split(/\s+/)[0];
+
+    await transporter.sendMail({
+      from: `"${SENDER_NAME}" <${process.env.GMAIL_USER}>`,
+      to: input.to,
+      subject: `Não foi possível validar o seu pagamento — ${input.registrationNumber} · DUNAMIS`,
+      text:
+        `Olá, ${firstName}.\n\n` +
+        `Não foi possível validar o comprovativo de pagamento associado à inscrição ${input.registrationNumber}.\n\n` +
+        `Isto pode acontecer por o valor, a referência ou a imagem não corresponderem ao esperado. ` +
+        `Contacte-nos para regularizar a situação.\n\n` +
+        `Equipa DUNAMIS`,
+      html: paymentRejectedHtml(firstName, input.registrationNumber),
+    });
+  }
+}
+
+function emailShell(bodyHtml: string): string {
+  return `<!doctype html>
+<html lang="pt">
+  <body style="margin:0;padding:0;background:#f4f4f1;font-family:Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" style="background:#f4f4f1;padding:32px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" style="background:#ffffff;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="background:#142a1d;padding:20px 32px;">
+                <span style="color:#f4f4f1;font-size:16px;font-weight:bold;letter-spacing:0.5px;">DUNAMIS</span>
+                <div style="color:#c9d2c9;font-size:11px;margin-top:2px;">Terceira Igreja Baptista de Luanda</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px;color:#1c1c1c;font-size:14px;line-height:1.6;">
+                ${bodyHtml}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px;background:#f7f6f2;color:#9a9a92;font-size:11px;">
+                Este é um email automático — não é necessário responder.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function paymentConfirmedHtml(firstName: string, registrationNumber: string): string {
+  return emailShell(`
+    <p style="margin:0 0 16px;">Olá, <strong>${firstName}</strong>.</p>
+    <p style="margin:0 0 16px;">
+      O seu pagamento foi validado e a sua inscrição no <strong>DUNAMIS</strong> está confirmada.
+    </p>
+    <p style="margin:0 0 20px;">
+      Número de inscrição: <strong style="font-family:monospace;">${registrationNumber}</strong>
+    </p>
+    <p style="margin:0 0 16px;">
+      Em anexo encontra o comprovativo de inscrição com o seu QR Code pessoal. Apresente-o — impresso ou no
+      telemóvel — no check-in, no dia do evento.
+    </p>
+    <p style="margin:24px 0 0;color:#5a5a5a;">Até já,<br/>Equipa DUNAMIS</p>
+  `);
+}
+
+function paymentRejectedHtml(firstName: string, registrationNumber: string): string {
+  return emailShell(`
+    <p style="margin:0 0 16px;">Olá, <strong>${firstName}</strong>.</p>
+    <p style="margin:0 0 16px;">
+      Não foi possível validar o comprovativo de pagamento associado à inscrição
+      <strong style="font-family:monospace;">${registrationNumber}</strong>.
+    </p>
+    <p style="margin:0 0 16px;">
+      Isto pode acontecer quando o valor, a referência ou a imagem do comprovativo não correspondem ao
+      esperado. Contacte-nos para regularizar a situação e concluir a sua inscrição.
+    </p>
+    <p style="margin:24px 0 0;color:#5a5a5a;">Equipa DUNAMIS</p>
+  `);
+}

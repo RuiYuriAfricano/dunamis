@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -130,13 +130,7 @@ export default function CheckInPage() {
         )}
 
         {state.status === "found" && (
-          <Card className="w-full animate-in fade-in zoom-in-95 gap-0 overflow-hidden border-none py-0 shadow-lg duration-300">
-            <CardHeader className="gap-1 border-b bg-emerald-500/10 py-4">
-              <CardTitle className="flex items-center gap-2 text-lg text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2 className="size-5" />
-                Participante válido
-              </CardTitle>
-            </CardHeader>
+          <StatusCard tone="emerald" icon={CheckCircle2} title="Participante válido">
             <ParticipantDetails result={state.result} />
             <CardContent className="flex gap-3 pb-6">
               <Button className="flex-1" variant="outline" onClick={reset}>
@@ -147,34 +141,22 @@ export default function CheckInPage() {
                 {confirming ? "A confirmar..." : "Confirmar entrada"}
               </Button>
             </CardContent>
-          </Card>
+          </StatusCard>
         )}
 
         {state.status === "confirmed" && (
-          <Card className="w-full animate-in fade-in zoom-in-95 gap-0 overflow-hidden border-none py-0 shadow-lg duration-300">
-            <CardHeader className="gap-1 border-b bg-emerald-500/10 py-4">
-              <CardTitle className="flex items-center gap-2 font-display text-lg tracking-wide text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2 className="size-5" />
-                Check-in realizado com sucesso
-              </CardTitle>
-            </CardHeader>
+          <StatusCard tone="emerald" icon={CheckCircle2} title="Check-in realizado com sucesso">
             <ParticipantDetails result={state.result} />
             <CardContent className="pb-6">
               <Button className="w-full" onClick={reset}>
                 Ler próximo
               </Button>
             </CardContent>
-          </Card>
+          </StatusCard>
         )}
 
         {state.status === "already" && (
-          <Card className="w-full animate-in fade-in zoom-in-95 gap-0 overflow-hidden border-none py-0 shadow-lg duration-300">
-            <CardHeader className="gap-1 border-b bg-amber-500/10 py-4">
-              <CardTitle className="flex items-center gap-2 text-lg text-amber-700 dark:text-amber-400">
-                <AlertTriangle className="size-5" />
-                Já realizou check-in
-              </CardTitle>
-            </CardHeader>
+          <StatusCard tone="amber" icon={AlertTriangle} title="Já realizou check-in">
             <ParticipantDetails result={state.result} />
             <CardContent className="space-y-1 pb-6 text-sm text-muted-foreground">
               <p>Data/Hora: {state.result.checkedInAt ? new Date(state.result.checkedInAt).toLocaleString("pt-PT") : "-"}</p>
@@ -183,38 +165,95 @@ export default function CheckInPage() {
                 Ler próximo
               </Button>
             </CardContent>
-          </Card>
+          </StatusCard>
         )}
 
         {state.status === "error" && (
-          <Card className="w-full animate-in fade-in zoom-in-95 gap-0 overflow-hidden border-none py-0 shadow-lg duration-300">
-            <CardHeader className="gap-1 border-b bg-destructive/10 py-4">
-              <CardTitle className="flex items-center gap-2 text-lg text-destructive">
-                <XCircle className="size-5" />
-                Erro
-              </CardTitle>
-            </CardHeader>
+          <StatusCard tone="destructive" icon={XCircle} title="Erro">
             <CardContent className="space-y-4 pt-4 pb-6">
               <p className="text-sm">{state.message}</p>
               <Button className="w-full" onClick={reset}>
                 Tentar novamente
               </Button>
             </CardContent>
-          </Card>
+          </StatusCard>
         )}
       </main>
     </div>
   );
 }
 
+const STATUS_TONES = {
+  emerald: {
+    bar: "from-dunamis-green to-primary",
+    header: "bg-emerald-500/10",
+    text: "text-emerald-700 dark:text-emerald-400",
+    ring: "ring-emerald-500/30",
+  },
+  amber: {
+    bar: "from-amber-500 to-primary",
+    header: "bg-amber-500/10",
+    text: "text-amber-700 dark:text-amber-400",
+    ring: "ring-amber-500/30",
+  },
+  destructive: {
+    bar: "from-destructive to-destructive/60",
+    header: "bg-destructive/10",
+    text: "text-destructive",
+    ring: "ring-destructive/30",
+  },
+} as const;
+
+function StatusCard({
+  tone,
+  icon: Icon,
+  title,
+  children,
+}: {
+  tone: keyof typeof STATUS_TONES;
+  icon: typeof CheckCircle2;
+  title: string;
+  children: ReactNode;
+}) {
+  const t = STATUS_TONES[tone];
+  return (
+    <Card className="w-full animate-in fade-in zoom-in-95 gap-0 overflow-hidden border-none py-0 shadow-lg duration-300">
+      <div className={`h-1.5 w-full bg-gradient-to-r ${t.bar}`} aria-hidden />
+      <CardHeader className={`gap-1 border-b py-4 ${t.header}`}>
+        <CardTitle className={`flex items-center gap-2 font-display text-lg tracking-wide ${t.text}`}>
+          <span className={`flex size-8 items-center justify-center rounded-full bg-background ring-2 ${t.ring}`}>
+            <Icon className="size-4" />
+          </span>
+          {title}
+        </CardTitle>
+      </CardHeader>
+      {children}
+    </Card>
+  );
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? "") + (parts.at(-1)?.[0] ?? "")).toUpperCase();
+}
+
 function ParticipantDetails({ result }: { result: CheckInLookupResult }) {
   return (
-    <CardContent className="space-y-1 pt-4 text-sm">
-      <p className="text-base font-semibold">{result.fullName}</p>
-      <p className="font-mono text-muted-foreground">{result.registrationNumber}</p>
-      <p>Igreja: {result.church}</p>
-      <p>Sexo: {result.gender === "MALE" ? "Masculino" : "Feminino"}</p>
-      <p>Paragem: {result.transportStop?.name ?? "-"}</p>
+    <CardContent className="space-y-3 pt-4 text-sm">
+      <div className="flex items-center gap-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary ring-2 ring-primary/20">
+          {initials(result.fullName)}
+        </span>
+        <div>
+          <p className="text-base font-semibold">{result.fullName}</p>
+          <p className="font-mono text-xs text-muted-foreground">{result.registrationNumber}</p>
+        </div>
+      </div>
+      <div className="space-y-1 rounded-lg bg-muted/40 p-3 text-muted-foreground">
+        <p>Igreja: <span className="text-foreground">{result.church}</span></p>
+        <p>Sexo: <span className="text-foreground">{result.gender === "MALE" ? "Masculino" : "Feminino"}</span></p>
+        <p>Paragem: <span className="text-foreground">{result.transportStop?.name ?? "-"}</span></p>
+      </div>
       <div className="flex gap-2 pt-1">
         <Badge variant={result.tentRequired ? "default" : "secondary"}>
           {result.tentRequired ? "Precisa de tenda" : "Sem tenda"}
