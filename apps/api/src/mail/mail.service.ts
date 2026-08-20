@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createTransport, type Transporter } from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 const SENDER_NAME = 'DUNAMIS · Terceira Igreja Baptista de Luanda';
 
@@ -44,7 +45,10 @@ export class MailService {
     // Fail fast instead of hanging silently — a blocked/slow SMTP connection
     // would otherwise leave the caller's fire-and-forget promise pending
     // forever, with nothing ever reaching the logs.
-    this.transporter = createTransport({
+    // `family` isn't in @types/nodemailer's Options, but nodemailer forwards
+    // unrecognized options straight through to Node's net/tls connect calls,
+    // so this is a real, supported way to force IPv4.
+    const options = {
       host: 'smtp.gmail.com',
       port: 587,
       secure: false,
@@ -52,7 +56,12 @@ export class MailService {
       connectionTimeout: 15_000,
       greetingTimeout: 15_000,
       socketTimeout: 15_000,
-    });
+      // Render resolves smtp.gmail.com to an IPv6 address but has no IPv6
+      // egress route, failing with ENETUNREACH before the connection even
+      // starts. Force IPv4, which Render does route correctly.
+      family: 4,
+    };
+    this.transporter = createTransport(options as SMTPTransport.Options);
 
     this.transporter
       .verify()
