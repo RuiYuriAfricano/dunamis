@@ -62,7 +62,7 @@ export default function AdminLoginPage() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="relative hidden flex-col items-center gap-8 overflow-hidden bg-dunamis-green p-10 text-dunamis-green-foreground lg:flex">
-        <Image src="/logo-dunamis.png" alt="DUNAMIS" width={438} height={170} className="relative z-10 h-8 w-auto sm:h-9" />
+        <Image src="/logo-dunamis-new.png" alt="DUNAMIS" width={621} height={278} className="relative z-10 h-8 w-auto sm:h-9" />
 
         <div className="relative z-10 flex flex-1 items-center">
           <Image
@@ -106,7 +106,7 @@ export default function AdminLoginPage() {
           </Link>
 
           <div className="mb-6 flex flex-col items-center gap-3 text-center lg:hidden">
-            <Image src="/logo-dunamis.png" alt="DUNAMIS" width={438} height={170} className="h-9 w-auto" />
+            <Image src="/logo-dunamis-new.png" alt="DUNAMIS" width={621} height={278} className="h-9 w-auto" />
           </div>
 
           <h1 className="text-center font-display text-2xl tracking-wide text-dunamis-green">Acesso administrativo</h1>
