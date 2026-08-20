@@ -18,7 +18,7 @@ const TRANSPORT_STOPS = [
   "Zango",
   "Cidade",
   "Terceira Igreja Baptista",
-  "Dangerreu",
+  "Dangerreux",
   "Kilamba/11",
 ];
 
@@ -27,6 +27,7 @@ const TRANSPORT_STOPS = [
 const TRANSPORT_STOP_RENAMES: [string, string][] = [
   ["Viana", "Zango"],
   ["Kilamba/1", "Kilamba/11"],
+  ["Dangerreu", "Dangerreux"],
 ];
 
 async function main() {
