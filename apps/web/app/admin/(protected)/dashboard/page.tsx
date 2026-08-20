@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Banknote, CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageLoading } from "@/components/ui/page-loading";
 import { useSession } from "@/lib/use-session";
@@ -66,6 +67,38 @@ export default function DashboardPage() {
             </Card>
           );
         })}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Card className="animate-in fade-in slide-in-from-bottom-2 gap-1 border-none bg-primary/10 fill-mode-both py-3 duration-500">
+          <CardHeader className="px-4">
+            <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Banknote className="size-3.5" aria-hidden />
+              Total arrecadado (pagamentos confirmados)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 text-2xl font-bold text-primary">
+            {stats.totalRevenueKz.toLocaleString("pt-PT")} Kz
+          </CardContent>
+        </Card>
+
+        <Card className="animate-in fade-in slide-in-from-bottom-2 gap-1 border-none bg-muted/40 fill-mode-both py-3 duration-500">
+          <CardHeader className="px-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              As suas validações, {session.name}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-5 px-4">
+            <span className="flex items-center gap-1.5 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="size-5" aria-hidden />
+              {stats.myValidations}
+            </span>
+            <span className="flex items-center gap-1.5 text-2xl font-bold text-destructive">
+              <XCircle className="size-5" aria-hidden />
+              {stats.myRejections}
+            </span>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

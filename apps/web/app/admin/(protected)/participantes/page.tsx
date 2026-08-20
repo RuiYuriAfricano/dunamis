@@ -379,6 +379,12 @@ export default function ParticipantsPage() {
                             {PAYMENT_STATUS_LABEL[p.paymentStatus]}
                           </span>
                         </div>
+                        {p.paymentReviewedBy && (
+                          <p className="text-xs text-muted-foreground">
+                            {p.paymentStatus === PaymentStatus.REJECTED ? "Rejeitado" : "Validado"} por{" "}
+                            <span className="font-medium text-foreground">{p.paymentReviewedBy.name}</span>
+                          </p>
+                        )}
                         {p.paymentProofPath ? (
                           <a
                             href={paymentProofUrl(p.paymentProofPath)}

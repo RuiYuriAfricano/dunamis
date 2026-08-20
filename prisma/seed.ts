@@ -22,6 +22,14 @@ const TRANSPORT_STOPS = [
   "Kilamba/11",
 ];
 
+const TEAM_ADMINS = [
+  { name: "Rui Malemba", email: "rui.malemba@dunamis.ao" },
+  { name: "Mário Giovani", email: "mario.giovani@dunamis.ao" },
+  { name: "Adélia Cristina", email: "adelia.cristina@dunamis.ao" },
+  { name: "Abrãao Marcos", email: "abraao.marcos@dunamis.ao" },
+  { name: "Silas Chama", email: "silas.chama@dunamis.ao" },
+];
+
 // One-time renames for stops that already exist under an old name — applied
 // before the upsert below so a rerun never creates a duplicate under the new name.
 const TRANSPORT_STOP_RENAMES: [string, string][] = [
@@ -70,7 +78,21 @@ async function main() {
     },
   });
 
-  console.log("Seed concluído: paragens de transporte + utilizador administrador.");
+  const teamAdminPasswordHash = await bcrypt.hash("dunamis@2026", 12);
+  for (const admin of TEAM_ADMINS) {
+    await prisma.user.upsert({
+      where: { email: admin.email },
+      update: {},
+      create: {
+        name: admin.name,
+        email: admin.email,
+        passwordHash: teamAdminPasswordHash,
+        role: "ADMIN",
+      },
+    });
+  }
+
+  console.log("Seed concluído: paragens de transporte + utilizadores administradores.");
 }
 
 main()

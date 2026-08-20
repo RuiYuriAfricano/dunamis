@@ -83,6 +83,9 @@ export interface DashboardStats {
   totalTentRequired: number;
   totalMattressRequired: number;
   totalCheckedIn: number;
+  totalRevenueKz: number;
+  myValidations: number;
+  myRejections: number;
   byTransportStop: TransportStopStat[];
   byAgeGroup: AgeGroupStat[];
 }

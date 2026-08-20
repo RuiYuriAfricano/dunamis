@@ -26,7 +26,7 @@ function calculateAge(birthDate: Date, now: Date): number {
 export class StatsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async dashboard() {
+  async dashboard(userId: string) {
     const [
       totalParticipants,
       totalMale,
@@ -38,6 +38,9 @@ export class StatsService {
       totalCheckedIn,
       stops,
       birthDates,
+      revenue,
+      myValidations,
+      myRejections,
     ] = await Promise.all([
       this.prisma.participant.count(),
       this.prisma.participant.count({ where: { gender: 'MALE' } }),
@@ -56,6 +59,16 @@ export class StatsService {
         },
       }),
       this.prisma.participant.findMany({ select: { birthDate: true } }),
+      this.prisma.participant.aggregate({
+        where: { paymentStatus: 'CONFIRMED' },
+        _sum: { paymentAmount: true },
+      }),
+      this.prisma.participant.count({
+        where: { paymentReviewedById: userId, paymentStatus: 'CONFIRMED' },
+      }),
+      this.prisma.participant.count({
+        where: { paymentReviewedById: userId, paymentStatus: 'REJECTED' },
+      }),
     ]);
 
     const now = new Date();
@@ -77,6 +90,9 @@ export class StatsService {
       totalTentRequired,
       totalMattressRequired,
       totalCheckedIn,
+      totalRevenueKz: revenue._sum.paymentAmount ?? 0,
+      myValidations,
+      myRejections,
       byTransportStop: stops.map((stop) => ({
         stopName: stop.name,
         total: stop._count.participants,
