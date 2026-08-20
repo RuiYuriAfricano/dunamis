@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { RegistrationForm } from "@/components/registration/registration-form";
 import { apiFetch } from "@/lib/api";
 import { EVENT_DATE_RANGE, EVENT_LOCATION } from "@/lib/event";
@@ -12,8 +13,15 @@ export default async function InscricaoPage() {
     <div className="bg-gradient-to-b from-primary/10 via-background to-background">
       <div className="mx-auto w-full max-w-2xl px-6 py-16">
         <div className="mb-8 text-center">
-          <h1 className="font-display text-3xl tracking-wide text-dunamis-green">Inscrição</h1>
-          <p className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <Image
+            src="/cabecalho-inscricao.png"
+            alt="Acampamento DUNAMIS"
+            width={792}
+            height={133}
+            priority
+            className="mx-auto w-full rounded-xl shadow-sm"
+          />
+          <p className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <span>📅 {EVENT_DATE_RANGE}</span>
             <span>📍 {EVENT_LOCATION}</span>
           </p>
