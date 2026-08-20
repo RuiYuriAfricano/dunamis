@@ -41,12 +41,26 @@ export class MailService {
       return null;
     }
 
+    // Fail fast instead of hanging silently — a blocked/slow SMTP connection
+    // would otherwise leave the caller's fire-and-forget promise pending
+    // forever, with nothing ever reaching the logs.
     this.transporter = createTransport({
       host: 'smtp.gmail.com',
       port: 587,
       secure: false,
       auth: { user, pass },
+      connectionTimeout: 15_000,
+      greetingTimeout: 15_000,
+      socketTimeout: 15_000,
     });
+
+    this.transporter
+      .verify()
+      .then(() => this.logger.log('Ligação SMTP ao Gmail verificada com sucesso.'))
+      .catch((error: Error) =>
+        this.logger.error(`Falha ao verificar a ligação SMTP ao Gmail: ${error.message}`),
+      );
+
     return this.transporter;
   }
 
@@ -59,25 +73,34 @@ export class MailService {
       ? 'A sua inscrição como patrocinado(a)/bolseiro(a) foi aprovada e está confirmada.'
       : 'O seu pagamento foi validado e a sua inscrição no DUNAMIS está confirmada.';
 
-    await transporter.sendMail({
-      from: `"${SENDER_NAME}" <${process.env.GMAIL_USER}>`,
-      to: input.to,
-      subject: `Inscrição confirmada — ${input.registrationNumber} · DUNAMIS`,
-      text:
-        `Olá, ${firstName}.\n\n` +
-        `${confirmationLine}\n\n` +
-        `Número de inscrição: ${input.registrationNumber}\n\n` +
-        `Em anexo encontra o comprovativo de inscrição com o QR Code. Apresente-o (impresso ou no telemóvel) no check-in, no dia do evento.\n\n` +
-        `Até já,\nEquipa DUNAMIS`,
-      html: paymentConfirmedHtml(firstName, input.registrationNumber, confirmationLine),
-      attachments: [
-        {
-          filename: `${input.registrationNumber}-comprovativo.pdf`,
-          content: input.pdfBuffer,
-          contentType: 'application/pdf',
-        },
-      ],
-    });
+    this.logger.log(`A enviar email de confirmação para ${input.to} (${input.registrationNumber})...`);
+    try {
+      await transporter.sendMail({
+        from: `"${SENDER_NAME}" <${process.env.GMAIL_USER}>`,
+        to: input.to,
+        subject: `Inscrição confirmada — ${input.registrationNumber} · DUNAMIS`,
+        text:
+          `Olá, ${firstName}.\n\n` +
+          `${confirmationLine}\n\n` +
+          `Número de inscrição: ${input.registrationNumber}\n\n` +
+          `Em anexo encontra o comprovativo de inscrição com o QR Code. Apresente-o (impresso ou no telemóvel) no check-in, no dia do evento.\n\n` +
+          `Até já,\nEquipa DUNAMIS`,
+        html: paymentConfirmedHtml(firstName, input.registrationNumber, confirmationLine),
+        attachments: [
+          {
+            filename: `${input.registrationNumber}-comprovativo.pdf`,
+            content: input.pdfBuffer,
+            contentType: 'application/pdf',
+          },
+        ],
+      });
+      this.logger.log(`Email de confirmação enviado para ${input.to} (${input.registrationNumber}).`);
+    } catch (error) {
+      this.logger.error(
+        `Falha ao enviar email de confirmação para ${input.to} (${input.registrationNumber}): ${(error as Error).message}`,
+      );
+      throw error;
+    }
   }
 
   async sendPaymentRejectedEmail(input: PaymentRejectedEmailInput) {
@@ -86,18 +109,27 @@ export class MailService {
 
     const firstName = input.fullName.trim().split(/\s+/)[0];
 
-    await transporter.sendMail({
-      from: `"${SENDER_NAME}" <${process.env.GMAIL_USER}>`,
-      to: input.to,
-      subject: `Não foi possível validar o seu pagamento — ${input.registrationNumber} · DUNAMIS`,
-      text:
-        `Olá, ${firstName}.\n\n` +
-        `Não foi possível validar o comprovativo de pagamento associado à inscrição ${input.registrationNumber}.\n\n` +
-        `Isto pode acontecer por o valor, a referência ou a imagem não corresponderem ao esperado. ` +
-        `Contacte-nos para regularizar a situação.\n\n` +
-        `Equipa DUNAMIS`,
-      html: paymentRejectedHtml(firstName, input.registrationNumber),
-    });
+    this.logger.log(`A enviar email de rejeição para ${input.to} (${input.registrationNumber})...`);
+    try {
+      await transporter.sendMail({
+        from: `"${SENDER_NAME}" <${process.env.GMAIL_USER}>`,
+        to: input.to,
+        subject: `Não foi possível validar o seu pagamento — ${input.registrationNumber} · DUNAMIS`,
+        text:
+          `Olá, ${firstName}.\n\n` +
+          `Não foi possível validar o comprovativo de pagamento associado à inscrição ${input.registrationNumber}.\n\n` +
+          `Isto pode acontecer por o valor, a referência ou a imagem não corresponderem ao esperado. ` +
+          `Contacte-nos para regularizar a situação.\n\n` +
+          `Equipa DUNAMIS`,
+        html: paymentRejectedHtml(firstName, input.registrationNumber),
+      });
+      this.logger.log(`Email de rejeição enviado para ${input.to} (${input.registrationNumber}).`);
+    } catch (error) {
+      this.logger.error(
+        `Falha ao enviar email de rejeição para ${input.to} (${input.registrationNumber}): ${(error as Error).message}`,
+      );
+      throw error;
+    }
   }
 }
 
