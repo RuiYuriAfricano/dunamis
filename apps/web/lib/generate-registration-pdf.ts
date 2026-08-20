@@ -13,7 +13,7 @@ async function loadImageAsDataUrl(url: string): Promise<string> {
 
 export async function generateRegistrationPdf(confirmation: ParticipantConfirmation): Promise<void> {
   const { jsPDF } = await import("jspdf");
-  const logo = await loadImageAsDataUrl("/logo-dunamis.png");
+  const logo = await loadImageAsDataUrl("/logo-dunamis-new.png");
 
   const doc = new jsPDF({ unit: "mm", format: "a5" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -21,7 +21,7 @@ export async function generateRegistrationPdf(confirmation: ParticipantConfirmat
   let y = 18;
 
   const logoWidth = 50;
-  const logoHeight = (170 / 438) * logoWidth;
+  const logoHeight = (278 / 621) * logoWidth;
   doc.addImage(logo, "PNG", (pageWidth - logoWidth) / 2, y, logoWidth, logoHeight);
   y += logoHeight + 8;
 

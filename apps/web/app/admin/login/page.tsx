@@ -62,7 +62,7 @@ export default function AdminLoginPage() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="relative hidden flex-col items-center gap-8 overflow-hidden bg-dunamis-green p-10 text-dunamis-green-foreground lg:flex">
-        <Image src="/logo-dunamis-new.png" alt="DUNAMIS" width={621} height={278} className="relative z-10 h-8 w-auto sm:h-9" />
+        <Image src="/logo-dunamis-new.png" alt="DUNAMIS" width={621} height={278} className="relative z-10 h-12 w-auto sm:h-14" />
 
         <div className="relative z-10 flex flex-1 items-center">
           <Image
@@ -70,7 +70,7 @@ export default function AdminLoginPage() {
             alt="Cartaz do Acampamento DUNAMIS 2026"
             width={630}
             height={771}
-            className="w-72 rounded-xl border-4 border-white/10 shadow-2xl"
+            className="w-80 rounded-xl border-4 border-white/10 shadow-2xl sm:w-96"
           />
         </div>
 

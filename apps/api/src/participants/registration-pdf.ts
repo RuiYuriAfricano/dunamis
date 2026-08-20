@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import PDFDocument from 'pdfkit';
 import * as QRCode from 'qrcode';
 
-const LOGO_PATH = join(__dirname, '..', 'assets', 'logo-dunamis.png');
+const LOGO_PATH = join(__dirname, '..', 'assets', 'logo-dunamis-new.png');
 
 interface RegistrationPdfInput {
   registrationNumber: string;
@@ -38,7 +38,7 @@ export async function generateRegistrationPdf(
   let y = 36;
 
   const logoWidth = 150;
-  const logoHeight = (170 / 438) * logoWidth;
+  const logoHeight = (278 / 621) * logoWidth;
   doc.image(LOGO_PATH, (pageWidth - logoWidth) / 2, y, { width: logoWidth });
   y += logoHeight + 20;
 
