@@ -28,6 +28,7 @@ const TEAM_ADMINS = [
   { name: "Adélia Cristina", email: "adelia.cristina@dunamis.ao" },
   { name: "Abrãao Marcos", email: "abraao.marcos@dunamis.ao" },
   { name: "Silas Chama", email: "silas.chama@dunamis.ao" },
+  { name: "Marco", email: "marco@dunamis.ao" },
 ];
 
 // One-time renames for stops that already exist under an old name — applied
