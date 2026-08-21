@@ -38,6 +38,7 @@ export class StatsService {
       totalCheckedIn,
       stops,
       birthDates,
+      registrationDates,
       revenue,
       myValidations,
       myRejections,
@@ -59,6 +60,7 @@ export class StatsService {
         },
       }),
       this.prisma.participant.findMany({ select: { birthDate: true } }),
+      this.prisma.participant.findMany({ select: { createdAt: true } }),
       this.prisma.participant.aggregate({
         where: { paymentStatus: 'CONFIRMED' },
         _sum: { paymentAmount: true },
@@ -79,6 +81,18 @@ export class StatsService {
       if (group)
         ageCounts.set(group.label, (ageCounts.get(group.label) ?? 0) + 1);
     }
+
+    // Bucketed by day in Africa/Luanda (UTC+1, no DST) so the peaks/dips line
+    // up with when people actually registered, not the UTC storage offset.
+    const dayCounts = new Map<string, number>();
+    for (const { createdAt } of registrationDates) {
+      const localDate = new Date(createdAt.getTime() + 60 * 60 * 1000);
+      const key = localDate.toISOString().slice(0, 10);
+      dayCounts.set(key, (dayCounts.get(key) ?? 0) + 1);
+    }
+    const byRegistrationDay = Array.from(dayCounts.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, total]) => ({ date, total }));
 
     return {
       totalParticipants,
@@ -101,6 +115,7 @@ export class StatsService {
         ageGroup: group.label,
         total: ageCounts.get(group.label) ?? 0,
       })),
+      byRegistrationDay,
     };
   }
 }

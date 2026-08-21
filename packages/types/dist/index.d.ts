@@ -68,6 +68,10 @@ export interface AgeGroupStat {
     ageGroup: string;
     total: number;
 }
+export interface RegistrationDayStat {
+    date: string;
+    total: number;
+}
 export interface DashboardStats {
     totalParticipants: number;
     totalMale: number;
@@ -83,6 +87,7 @@ export interface DashboardStats {
     myRejections: number;
     byTransportStop: TransportStopStat[];
     byAgeGroup: AgeGroupStat[];
+    byRegistrationDay: RegistrationDayStat[];
 }
 export interface CheckInLookupResult {
     participantId: string;

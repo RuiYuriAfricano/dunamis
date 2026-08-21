@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Banknote, CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageLoading } from "@/components/ui/page-loading";
@@ -28,6 +28,11 @@ const STAT_CARDS: { key: keyof DashboardStats; label: string }[] = [
   { key: "totalMattressRequired", label: "Precisam de colchão" },
   { key: "totalCheckedIn", label: "Já fizeram check-in" },
 ];
+
+function formatDay(isoDate: string) {
+  const [, month, day] = isoDate.split("-");
+  return `${day}/${month}`;
+}
 
 export default function DashboardPage() {
   const session = useSession();
@@ -140,6 +145,31 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="animate-in fade-in duration-700">
+        <CardHeader>
+          <CardTitle>Inscrições ao longo do tempo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-72 w-full text-primary">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={stats.byRegistrationDay}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tickFormatter={formatDay} tick={{ fontSize: 12 }} />
+                <YAxis allowDecimals={false} />
+                <Tooltip labelFormatter={(value) => formatDay(String(value))} />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: "currentColor" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

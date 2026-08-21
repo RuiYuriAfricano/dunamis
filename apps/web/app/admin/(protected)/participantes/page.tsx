@@ -323,6 +323,7 @@ export default function ParticipantsPage() {
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Nº Inscrição</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Data de Inscrição</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Nome</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Idade</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Igreja</TableHead>
@@ -345,7 +346,7 @@ export default function ParticipantsPage() {
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={18} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={19} className="py-10 text-center text-muted-foreground">
                   <div className="flex items-center justify-center gap-2">
                     <Spinner className="size-4" />A carregar inscritos...
                   </div>
@@ -355,7 +356,7 @@ export default function ParticipantsPage() {
 
             {!loading && data?.data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={18} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={19} className="py-8 text-center text-muted-foreground">
                   Nenhum inscrito encontrado.
                 </TableCell>
               </TableRow>
@@ -367,6 +368,15 @@ export default function ParticipantsPage() {
                 return (
                   <TableRow key={p.id}>
                     <TableCell className="font-mono text-xs text-muted-foreground">{p.registrationNumber}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                      {new Date(p.createdAt).toLocaleString("pt-PT", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2.5">
                         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
