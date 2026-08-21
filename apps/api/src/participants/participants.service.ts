@@ -87,9 +87,16 @@ export class ParticipantsService {
 
     const birthDate = new Date(dto.birthDate);
     const now = new Date();
-    const age = now.getFullYear() - birthDate.getFullYear();
-    if (Number.isNaN(birthDate.getTime()) || birthDate > now || age > 120) {
+    if (Number.isNaN(birthDate.getTime()) || birthDate > now) {
       throw new BadRequestException('Data de nascimento inválida.');
+    }
+    let age = now.getFullYear() - birthDate.getFullYear();
+    const monthDiff = now.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) {
+      age -= 1;
+    }
+    if (age < 15 || age > 120) {
+      throw new BadRequestException('A idade mínima para participar é 15 anos.');
     }
 
     // Checked before the (slower, network-bound) proof upload so a duplicate

@@ -47,9 +47,11 @@ const schema = z
         if (Number.isNaN(date.getTime())) return false;
         const now = new Date();
         if (date > now) return false;
-        const age = now.getFullYear() - date.getFullYear();
-        return age <= 120;
-      }, "Indique uma data de nascimento válida."),
+        let age = now.getFullYear() - date.getFullYear();
+        const monthDiff = now.getMonth() - date.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < date.getDate())) age -= 1;
+        return age >= 15 && age <= 120;
+      }, "A idade mínima para participar é 15 anos."),
     phone: z.string().refine((v) => stripPhoneMask(v).length === 9, "Indique um número de telefone válido (9 dígitos)."),
     whatsapp: z
       .string()
@@ -301,7 +303,7 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
                   <Input
                     id="birthDate"
                     type="date"
-                    max={new Date().toISOString().slice(0, 10)}
+                    max={new Date(Date.now() - 15 * 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}
                     {...register("birthDate")}
                   />
                   {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate.message}</p>}
