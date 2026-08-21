@@ -96,8 +96,8 @@ export class ParticipantsService {
     if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) {
       age -= 1;
     }
-    if (age < 15 || age > 120) {
-      throw new BadRequestException('A idade mínima para participar é 15 anos.');
+    if (age < 13 || age > 120) {
+      throw new BadRequestException('A idade mínima para participar é 13 anos.');
     }
 
     // Checked before the (slower, network-bound) proof upload so a duplicate

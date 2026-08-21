@@ -50,8 +50,8 @@ const schema = z
         let age = now.getFullYear() - date.getFullYear();
         const monthDiff = now.getMonth() - date.getMonth();
         if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < date.getDate())) age -= 1;
-        return age >= 15 && age <= 120;
-      }, "A idade mínima para participar é 15 anos."),
+        return age >= 13 && age <= 120;
+      }, "A idade mínima para participar é 13 anos."),
     phone: z.string().refine((v) => stripPhoneMask(v).length === 9, "Indique um número de telefone válido (9 dígitos)."),
     whatsapp: z
       .string()
@@ -303,7 +303,7 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
                   <Input
                     id="birthDate"
                     type="date"
-                    max={new Date(Date.now() - 15 * 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}
+                    max={new Date(Date.now() - 13 * 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}
                     {...register("birthDate")}
                   />
                   {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate.message}</p>}
