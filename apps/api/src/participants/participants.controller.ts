@@ -19,6 +19,7 @@ import { CreateParticipantDto } from './dto/create-participant.dto';
 import { LookupParticipantDto } from './dto/lookup-participant.dto';
 import { QueryParticipantsDto } from './dto/query-participants.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
+import { UpdateBelongingsDto } from './dto/update-belongings.dto';
 import { paymentProofMulterOptions } from './payment-proof-storage';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -84,5 +85,12 @@ export class ParticipantsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.participantsService.updatePaymentStatus(id, dto, user.id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Patch(':id/belongings')
+  updateBelongings(@Param('id') id: string, @Body() dto: UpdateBelongingsDto) {
+    return this.participantsService.updateBelongings(id, dto.belongings);
   }
 }

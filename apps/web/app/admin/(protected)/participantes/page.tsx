@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, XCircle, Clock, FileText } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, FileText, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -112,6 +114,9 @@ export default function ParticipantsPage() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [editingBelongingsId, setEditingBelongingsId] = useState<string | null>(null);
+  const [belongingsDraft, setBelongingsDraft] = useState("");
+  const [savingBelongings, setSavingBelongings] = useState(false);
 
   useEffect(() => {
     apiFetch<TransportStopSummary[]>("/transport-stops").then(setStops);
@@ -179,6 +184,32 @@ export default function ParticipantsPage() {
       );
     } finally {
       setReviewingId(null);
+    }
+  }
+
+  function startEditingBelongings(p: ParticipantSummary) {
+    setEditingBelongingsId(p.id);
+    setBelongingsDraft(p.belongings ?? "");
+  }
+
+  async function saveBelongings(id: string) {
+    if (!session) return;
+    setSavingBelongings(true);
+    try {
+      const updated = await apiFetch<ParticipantSummary>(`/participants/${id}/belongings`, {
+        method: "PATCH",
+        token: session.accessToken,
+        body: JSON.stringify({ belongings: belongingsDraft }),
+      });
+      setData((prev) =>
+        prev ? { ...prev, data: prev.data.map((p) => (p.id === id ? updated : p)) } : prev,
+      );
+      setEditingBelongingsId(null);
+      toast.success("Pertences guardados.");
+    } catch {
+      toast.error("Não foi possível guardar os pertences.");
+    } finally {
+      setSavingBelongings(false);
     }
   }
 
@@ -308,12 +339,13 @@ export default function ParticipantsPage() {
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Patrocinado</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Pagamento</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Check-in</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Pertences</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={17} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={18} className="py-10 text-center text-muted-foreground">
                   <div className="flex items-center justify-center gap-2">
                     <Spinner className="size-4" />A carregar inscritos...
                   </div>
@@ -323,7 +355,7 @@ export default function ParticipantsPage() {
 
             {!loading && data?.data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={17} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={18} className="py-8 text-center text-muted-foreground">
                   Nenhum inscrito encontrado.
                 </TableCell>
               </TableRow>
@@ -428,6 +460,51 @@ export default function ParticipantsPage() {
                       <Badge variant={p.checkedIn ? "default" : "secondary"}>
                         {p.checkedIn ? "Feito" : "Pendente"}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="min-w-56 text-sm">
+                      {editingBelongingsId === p.id ? (
+                        <div className="space-y-1.5">
+                          <Textarea
+                            value={belongingsDraft}
+                            onChange={(e) => setBelongingsDraft(e.target.value)}
+                            placeholder="Ex.: Telemóvel x1, Mochila x1"
+                            rows={2}
+                            className="text-xs"
+                          />
+                          <div className="flex gap-1.5">
+                            <Button
+                              size="xs"
+                              className="h-6 px-2 text-[11px]"
+                              disabled={savingBelongings}
+                              onClick={() => saveBelongings(p.id)}
+                            >
+                              {savingBelongings && <Spinner className="size-3" />}
+                              Guardar
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              className="h-6 px-2 text-[11px]"
+                              disabled={savingBelongings}
+                              onClick={() => setEditingBelongingsId(null)}
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-muted-foreground">{p.belongings || "Sem pertences registados"}</span>
+                          <button
+                            type="button"
+                            onClick={() => startEditingBelongings(p)}
+                            className="shrink-0 text-muted-foreground hover:text-primary"
+                            aria-label="Editar pertences"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

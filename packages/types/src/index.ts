@@ -45,6 +45,7 @@ export interface ParticipantSummary {
   paymentReviewedBy: { name: string } | null;
   checkedIn: boolean;
   checkedInAt: string | null;
+  belongings: string | null;
   createdAt: string;
 }
 

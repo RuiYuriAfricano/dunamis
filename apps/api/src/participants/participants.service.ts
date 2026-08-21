@@ -56,6 +56,7 @@ const PARTICIPANT_SUMMARY_SELECT = {
   paymentReviewedBy: { select: { name: true } },
   checkedIn: true,
   checkedInAt: true,
+  belongings: true,
   createdAt: true,
 } satisfies Prisma.ParticipantSelect;
 
@@ -333,6 +334,19 @@ export class ParticipantsService {
       registrationNumber: participant.registrationNumber,
       isSponsored: participant.isSponsored,
       pdfBuffer,
+    });
+  }
+
+  async updateBelongings(id: string, belongings: string) {
+    const participant = await this.prisma.participant.findUnique({ where: { id } });
+    if (!participant) {
+      throw new NotFoundException('Participante não encontrado.');
+    }
+
+    return this.prisma.participant.update({
+      where: { id },
+      data: { belongings: belongings.trim() || null },
+      select: PARTICIPANT_SUMMARY_SELECT,
     });
   }
 

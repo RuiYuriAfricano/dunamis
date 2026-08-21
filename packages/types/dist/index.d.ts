@@ -43,6 +43,7 @@ export interface ParticipantSummary {
     } | null;
     checkedIn: boolean;
     checkedInAt: string | null;
+    belongings: string | null;
     createdAt: string;
 }
 export interface ParticipantConfirmation {
