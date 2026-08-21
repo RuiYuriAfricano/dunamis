@@ -6,8 +6,11 @@ import {
   BadgeCheck,
   Users,
   PhoneCall,
+  FileText,
+  Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const SECTIONS = [
   {
@@ -78,6 +81,20 @@ export default function NormasPage() {
         normas antes do evento. Este documento será revisto e atualizado pela organização — a
         versão final será também partilhada no dia da inscrição no recinto.
       </p>
+
+      <Card className="animate-in fade-in slide-in-from-bottom-2 mt-6 flex-row items-center justify-between gap-4 border-primary/30 bg-primary/5 p-4 delay-100 duration-500 fill-mode-both sm:p-5">
+        <div className="flex items-center gap-3">
+          <FileText className="size-8 shrink-0 text-primary" aria-hidden />
+          <div>
+            <p className="font-medium text-foreground">Regras do Acampamento DUNAMIS 2026</p>
+            <p className="text-sm text-muted-foreground">Documento oficial completo, em PDF.</p>
+          </div>
+        </div>
+        <Button nativeButton={false} render={<a href="/regras-dunamis-2026.pdf" target="_blank" rel="noreferrer" download />}>
+          <Download className="size-4" aria-hidden />
+          Descarregar PDF
+        </Button>
+      </Card>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
         {SECTIONS.map((section, i) => (

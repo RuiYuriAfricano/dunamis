@@ -65,6 +65,7 @@ model Participant {
   checkedInAt         DateTime?      @map("checked_in_at")
   checkedInById       String?        @map("checked_in_by_id")
   checkedInBy         User?          @relation("CheckInOperator", fields: [checkedInById], references: [id])
+  belongings          String?        @map("belongings")
   checkIn             CheckIn?
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @updatedAt @map("updated_at")

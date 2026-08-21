@@ -4,16 +4,19 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, AlertTriangle, XCircle, ScanLine } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle, ScanLine, Backpack } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { PageLoading } from "@/components/ui/page-loading";
 import { QrScanner } from "@/components/check-in/qr-scanner";
 import { useSession } from "@/lib/use-session";
 import { apiFetch, ApiError } from "@/lib/api";
 import { clearSession } from "@/lib/auth";
+import type { Session } from "@/lib/auth";
 import type { CheckInLookupResult } from "@dunamis/types";
 
 type ViewState =
@@ -147,6 +150,12 @@ export default function CheckInPage() {
         {state.status === "confirmed" && (
           <StatusCard tone="emerald" icon={CheckCircle2} title="Check-in realizado com sucesso">
             <ParticipantDetails result={state.result} />
+            <BelongingsEditor
+              qrToken={lastToken}
+              session={session}
+              result={state.result}
+              onSaved={(result) => setState({ status: "confirmed", result })}
+            />
             <CardContent className="pb-6">
               <Button className="w-full" onClick={reset}>
                 Ler próximo
@@ -158,10 +167,18 @@ export default function CheckInPage() {
         {state.status === "already" && (
           <StatusCard tone="amber" icon={AlertTriangle} title="Já realizou check-in">
             <ParticipantDetails result={state.result} />
-            <CardContent className="space-y-1 pb-6 text-sm text-muted-foreground">
+            <CardContent className="space-y-1 pt-0 pb-2 text-sm text-muted-foreground">
               <p>Data/Hora: {state.result.checkedInAt ? new Date(state.result.checkedInAt).toLocaleString("pt-PT") : "-"}</p>
               <p>Operador: {state.result.checkedInByName ?? "-"}</p>
-              <Button className="mt-4 w-full" onClick={reset}>
+            </CardContent>
+            <BelongingsEditor
+              qrToken={lastToken}
+              session={session}
+              result={state.result}
+              onSaved={(result) => setState({ status: "already", result })}
+            />
+            <CardContent className="pb-6">
+              <Button className="w-full" onClick={reset}>
                 Ler próximo
               </Button>
             </CardContent>
@@ -235,6 +252,58 @@ function StatusCard({
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? "") + (parts.at(-1)?.[0] ?? "")).toUpperCase();
+}
+
+function BelongingsEditor({
+  qrToken,
+  session,
+  result,
+  onSaved,
+}: {
+  qrToken: string | null;
+  session: Session;
+  result: CheckInLookupResult;
+  onSaved: (result: CheckInLookupResult) => void;
+}) {
+  const [value, setValue] = useState(result.belongings ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!qrToken) return;
+    setSaving(true);
+    try {
+      const updated = await apiFetch<CheckInLookupResult>(`/check-in/${qrToken}/belongings`, {
+        method: "PATCH",
+        token: session.accessToken,
+        body: JSON.stringify({ belongings: value }),
+      });
+      onSaved(updated);
+      toast.success("Pertences guardados.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Não foi possível guardar os pertences.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <CardContent className="space-y-2 pt-0 pb-2">
+      <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Backpack className="size-3.5" aria-hidden />
+        Pertences deixados (ex.: telemóvel, mala, carregador, computador...)
+      </label>
+      <Textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Ex.: Telemóvel x1, Mochila x1, Carregador x1"
+        rows={2}
+      />
+      <Button size="sm" variant="outline" onClick={save} disabled={saving} className="w-full">
+        {saving && <Spinner />}
+        {saving ? "A guardar..." : "Guardar pertences"}
+      </Button>
+    </CardContent>
+  );
 }
 
 function ParticipantDetails({ result }: { result: CheckInLookupResult }) {

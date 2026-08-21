@@ -48,6 +48,21 @@ export class CheckInService {
     return this.toLookupResult(updated);
   }
 
+  async updateBelongings(qrToken: string, belongings: string) {
+    const participant = await this.findByToken(qrToken);
+
+    const updated = await this.prisma.participant.update({
+      where: { id: participant.id },
+      data: { belongings: belongings.trim() || null },
+      include: {
+        transportStop: { select: { id: true, name: true } },
+        checkedInBy: { select: { name: true } },
+      },
+    });
+
+    return this.toLookupResult(updated);
+  }
+
   private async findByToken(qrToken: string) {
     const participant = await this.prisma.participant.findUnique({
       where: { qrToken },
@@ -84,6 +99,7 @@ export class CheckInService {
       checkedIn: participant.checkedIn,
       checkedInAt: participant.checkedInAt,
       checkedInByName: participant.checkedInBy?.name ?? null,
+      belongings: participant.belongings,
     };
   }
 }

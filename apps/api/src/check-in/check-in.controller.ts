@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Param, UseGuards } from '@nestjs/common';
 import { CheckInService } from './check-in.service';
+import { UpdateBelongingsDto } from './dto/update-belongings.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -23,5 +24,13 @@ export class CheckInController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.checkInService.confirm(qrToken, user.id);
+  }
+
+  @Patch(':qrToken/belongings')
+  updateBelongings(
+    @Param('qrToken') qrToken: string,
+    @Body() dto: UpdateBelongingsDto,
+  ) {
+    return this.checkInService.updateBelongings(qrToken, dto.belongings);
   }
 }

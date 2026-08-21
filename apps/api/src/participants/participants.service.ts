@@ -85,6 +85,13 @@ export class ParticipantsService {
       throw new BadRequestException('Comprovativo de pagamento é obrigatório.');
     }
 
+    const birthDate = new Date(dto.birthDate);
+    const now = new Date();
+    const age = now.getFullYear() - birthDate.getFullYear();
+    if (Number.isNaN(birthDate.getTime()) || birthDate > now || age > 120) {
+      throw new BadRequestException('Data de nascimento inválida.');
+    }
+
     // Checked before the (slower, network-bound) proof upload so a duplicate
     // registration fails fast without wasting a Supabase Storage write.
     await this.assertContactIsUnique(dto.email, dto.phone, dto.whatsapp);

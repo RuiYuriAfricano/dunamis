@@ -39,7 +39,17 @@ const schema = z
     baptized: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     fullName: z.string().min(3, "Indique o nome completo."),
     gender: z.enum(["MALE", "FEMALE"], { message: "Selecione o sexo." }),
-    birthDate: z.string().min(1, "Indique a data de nascimento."),
+    birthDate: z
+      .string()
+      .min(1, "Indique a data de nascimento.")
+      .refine((v) => {
+        const date = new Date(v);
+        if (Number.isNaN(date.getTime())) return false;
+        const now = new Date();
+        if (date > now) return false;
+        const age = now.getFullYear() - date.getFullYear();
+        return age <= 120;
+      }, "Indique uma data de nascimento válida."),
     phone: z.string().refine((v) => stripPhoneMask(v).length === 9, "Indique um número de telefone válido (9 dígitos)."),
     whatsapp: z
       .string()
@@ -288,7 +298,12 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
 
                 <div className="space-y-2">
                   <Label htmlFor="birthDate">Data de nascimento</Label>
-                  <Input id="birthDate" type="date" {...register("birthDate")} />
+                  <Input
+                    id="birthDate"
+                    type="date"
+                    max={new Date().toISOString().slice(0, 10)}
+                    {...register("birthDate")}
+                  />
                   {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate.message}</p>}
                 </div>
               </div>

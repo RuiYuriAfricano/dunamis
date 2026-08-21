@@ -102,4 +102,5 @@ export interface CheckInLookupResult {
   checkedIn: boolean;
   checkedInAt: string | null;
   checkedInByName: string | null;
+  belongings: string | null;
 }
