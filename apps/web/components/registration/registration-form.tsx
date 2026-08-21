@@ -98,6 +98,8 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
     watch,
     setValue,
     trigger,
+    getValues,
+    setError,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -129,7 +131,19 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
   }, [isMemberTibl, setValue]);
 
   async function goNext() {
-    const valid = await trigger(STEPS[step].fields);
+    let valid = await trigger(STEPS[step].fields);
+
+    // The zod cross-field refine for church (path: ["church"]) doesn't
+    // reliably surface through trigger()'s partial-field validation on this
+    // step, so it's checked explicitly here as well.
+    if (valid && step === 0 && getValues("isMemberTibl") === "false") {
+      const church = getValues("church");
+      if (!church || church.trim().length < 2) {
+        setError("church", { type: "manual", message: "Indique a sua igreja." });
+        valid = false;
+      }
+    }
+
     if (valid) setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
 
