@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, XCircle, Clock, FileText, Pencil } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, XCircle, Clock, FileText, Pencil, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,6 +118,7 @@ export default function ParticipantsPage() {
   const [editingBelongingsId, setEditingBelongingsId] = useState<string | null>(null);
   const [belongingsDraft, setBelongingsDraft] = useState("");
   const [savingBelongings, setSavingBelongings] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<TransportStopSummary[]>("/transport-stops").then(setStops);
@@ -213,6 +215,27 @@ export default function ParticipantsPage() {
     }
   }
 
+  async function handleDelete(p: ParticipantSummary) {
+    if (!session) return;
+    if (!window.confirm(`Tem a certeza que quer eliminar a inscrição de ${p.fullName}? Esta ação pode ser revertida apenas pela equipa técnica.`)) {
+      return;
+    }
+    setDeletingId(p.id);
+    try {
+      await apiFetch(`/participants/${p.id}`, { method: "DELETE", token: session.accessToken });
+      setData((prev) =>
+        prev
+          ? { ...prev, data: prev.data.filter((row) => row.id !== p.id), total: prev.total - 1 }
+          : prev,
+      );
+      toast.success("Inscrição eliminada.");
+    } catch {
+      toast.error("Não foi possível eliminar a inscrição.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
 
   return (
@@ -222,10 +245,16 @@ export default function ParticipantsPage() {
           <h1 className="font-display text-2xl tracking-wide text-dunamis-green">Inscritos</h1>
           <p className="text-sm text-muted-foreground">{data ? `${data.total} inscrito(s)` : "A carregar..."}</p>
         </div>
-        <Button onClick={handleExport} disabled={exporting}>
-          {exporting && <Spinner />}
-          {exporting ? "A exportar..." : "Exportar Excel"}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" nativeButton={false} render={<Link href="/admin/participantes/novo" />}>
+            <UserPlus className="size-4" />
+            Registar manualmente
+          </Button>
+          <Button onClick={handleExport} disabled={exporting}>
+            {exporting && <Spinner />}
+            {exporting ? "A exportar..." : "Exportar Excel"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-3 rounded-xl border bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -341,12 +370,13 @@ export default function ParticipantsPage() {
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Pagamento</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Check-in</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Pertences</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={19} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={20} className="py-10 text-center text-muted-foreground">
                   <div className="flex items-center justify-center gap-2">
                     <Spinner className="size-4" />A carregar inscritos...
                   </div>
@@ -356,7 +386,7 @@ export default function ParticipantsPage() {
 
             {!loading && data?.data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={19} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={20} className="py-8 text-center text-muted-foreground">
                   Nenhum inscrito encontrado.
                 </TableCell>
               </TableRow>
@@ -515,6 +545,18 @@ export default function ParticipantsPage() {
                           </button>
                         </div>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        className="h-7 border-destructive/40 px-2 text-destructive hover:bg-destructive/10"
+                        disabled={deletingId === p.id}
+                        onClick={() => handleDelete(p)}
+                        aria-label="Eliminar inscrição"
+                      >
+                        {deletingId === p.id ? <Spinner className="size-3" /> : <Trash2 className="size-3.5" />}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );

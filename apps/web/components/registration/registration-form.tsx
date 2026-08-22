@@ -7,7 +7,7 @@ import { useForm, Controller, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ShieldCheck, Gift } from "lucide-react";
+import { ShieldCheck, Gift, Tent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,7 @@ import { FileUpload } from "@/components/registration/file-upload";
 import { apiFetch, ApiError } from "@/lib/api";
 import { EVENT_PHONE, PAYMENT_AMOUNT_MEMBER, PAYMENT_AMOUNT_VISITOR } from "@/lib/event";
 import { formatAngolaPhone, stripPhoneMask } from "@/lib/masks";
-import type { ParticipantConfirmation, TransportStopSummary } from "@dunamis/types";
+import type { ParticipantConfirmation, TentTypeSummary, TransportStopSummary } from "@dunamis/types";
 
 const TIBL_NAME = "Terceira Igreja Baptista de Luanda";
 
@@ -58,10 +58,21 @@ const schema = z
       .refine((v) => stripPhoneMask(v).length === 9, "Indique um número de WhatsApp válido (9 dígitos)."),
     email: z.email("Indique um email válido."),
     allergicTo: z.string().optional(),
+    maritalStatus: z.enum(["SINGLE", "MARRIED"], { message: "Selecione uma opção." }),
+    bringingChildren: z.enum(["true", "false"], { message: "Selecione uma opção." }),
+    numberOfChildren: z.string().optional(),
     transportRequired: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     transportStopId: z.string().optional(),
+    ownTransportType: z.enum(["INDIVIDUAL", "TAXI"]).optional(),
+    carSeats: z.string().optional(),
+    carRouteStops: z.string().optional(),
     tentRequired: z.boolean(),
     mattressRequired: z.boolean(),
+    tentsCanProvide: z.string().optional(),
+    mattressesCanProvide: z.string().optional(),
+    wantsToBuyTent: z.enum(["true", "false"]).optional(),
+    tentPurchaseTypeId: z.string().optional(),
+    tentPurchaseQuantity: z.string().optional(),
     isSponsored: z.enum(["true", "false"], { message: "Selecione uma opção." }),
   })
   .refine((data) => data.transportRequired === "false" || !!data.transportStopId, {
@@ -77,13 +88,44 @@ type FormValues = z.infer<typeof schema>;
 
 const STEPS: { label: string; fields: Path<FormValues>[] }[] = [
   { label: "Participação", fields: ["isMemberTibl", "church", "firstTime", "baptized"] },
-  { label: "Dados pessoais", fields: ["fullName", "gender", "birthDate", "phone", "whatsapp", "email", "allergicTo"] },
-  { label: "Transporte", fields: ["transportRequired", "transportStopId"] },
-  { label: "Alojamento", fields: ["tentRequired", "mattressRequired"] },
+  {
+    label: "Dados pessoais",
+    fields: [
+      "fullName",
+      "gender",
+      "birthDate",
+      "phone",
+      "whatsapp",
+      "email",
+      "allergicTo",
+      "maritalStatus",
+      "bringingChildren",
+      "numberOfChildren",
+    ],
+  },
+  { label: "Transporte", fields: ["transportRequired", "transportStopId", "ownTransportType", "carSeats", "carRouteStops"] },
+  {
+    label: "Alojamento",
+    fields: [
+      "tentRequired",
+      "mattressRequired",
+      "tentsCanProvide",
+      "mattressesCanProvide",
+      "wantsToBuyTent",
+      "tentPurchaseTypeId",
+      "tentPurchaseQuantity",
+    ],
+  },
   { label: "Pagamento", fields: ["isSponsored"] },
 ];
 
-export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
+export function RegistrationForm({
+  stops,
+  tentTypes,
+}: {
+  stops: TransportStopSummary[];
+  tentTypes: TentTypeSummary[];
+}) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(0);
@@ -110,9 +152,20 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
       baptized: "" as unknown as FormValues["baptized"],
       gender: "" as unknown as FormValues["gender"],
       allergicTo: "",
+      maritalStatus: "" as unknown as FormValues["maritalStatus"],
+      bringingChildren: "false",
+      numberOfChildren: "",
       transportStopId: "",
+      ownTransportType: "" as unknown as FormValues["ownTransportType"],
+      carSeats: "",
+      carRouteStops: "",
       tentRequired: false,
       mattressRequired: false,
+      tentsCanProvide: "0",
+      mattressesCanProvide: "0",
+      wantsToBuyTent: "false",
+      tentPurchaseTypeId: "",
+      tentPurchaseQuantity: "1",
       transportRequired: "false",
       isSponsored: "false",
     },
@@ -121,6 +174,13 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
   const transportRequired = watch("transportRequired");
   const isMemberTibl = watch("isMemberTibl");
   const isSponsored = watch("isSponsored");
+  const bringingChildren = watch("bringingChildren");
+  const ownTransportType = watch("ownTransportType");
+  const tentRequired = watch("tentRequired");
+  const mattressRequired = watch("mattressRequired");
+  const wantsToBuyTent = watch("wantsToBuyTent");
+  const tentPurchaseTypeId = watch("tentPurchaseTypeId");
+  const tentPurchaseQuantity = watch("tentPurchaseQuantity");
 
   useEffect(() => {
     if (isMemberTibl === "true") {
@@ -130,17 +190,86 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
     }
   }, [isMemberTibl, setValue]);
 
+  const selectedTentType = tentTypes.find((t) => t.id === tentPurchaseTypeId);
+  const tentPurchaseCost =
+    wantsToBuyTent === "true" && selectedTentType
+      ? selectedTentType.price * (parseInt(tentPurchaseQuantity || "0", 10) || 0)
+      : 0;
+  const baseAmount = isMemberTibl === "true" ? PAYMENT_AMOUNT_MEMBER : PAYMENT_AMOUNT_VISITOR;
+  const totalAmount = baseAmount + tentPurchaseCost;
+
   async function goNext() {
     let valid = await trigger(STEPS[step].fields);
 
-    // The zod cross-field refine for church (path: ["church"]) doesn't
-    // reliably surface through trigger()'s partial-field validation on this
-    // step, so it's checked explicitly here as well.
+    // Cross-field "required if" checks are done explicitly rather than
+    // relying only on the zod object refine — trigger()'s partial-field
+    // validation doesn't reliably surface those on this codebase/RHF setup
+    // (confirmed with the equivalent church-required case).
     if (valid && step === 0 && getValues("isMemberTibl") === "false") {
       const church = getValues("church");
       if (!church || church.trim().length < 2) {
         setError("church", { type: "manual", message: "Indique a sua igreja." });
         valid = false;
+      }
+    }
+
+    if (valid && step === 1 && getValues("bringingChildren") === "true") {
+      const n = parseInt(getValues("numberOfChildren") || "", 10);
+      if (!n || n < 1) {
+        setError("numberOfChildren", { type: "manual", message: "Indique quantos filhos." });
+        valid = false;
+      }
+    }
+
+    if (valid && step === 2 && getValues("transportRequired") === "false") {
+      const type = getValues("ownTransportType");
+      if (!type) {
+        setError("ownTransportType", { type: "manual", message: "Selecione uma opção." });
+        valid = false;
+      } else if (type === "INDIVIDUAL") {
+        const seats = parseInt(getValues("carSeats") || "", 10);
+        if (!seats || seats < 1) {
+          setError("carSeats", { type: "manual", message: "Indique quantos lugares tem o carro." });
+          valid = false;
+        }
+        if (!getValues("carRouteStops")?.trim()) {
+          setError("carRouteStops", { type: "manual", message: "Indique as paragens do trajeto." });
+          valid = false;
+        }
+      }
+    }
+
+    if (valid && step === 3) {
+      if (!getValues("tentRequired")) {
+        const n = getValues("tentsCanProvide");
+        if (n === undefined || n === "" || parseInt(n, 10) < 0) {
+          setError("tentsCanProvide", { type: "manual", message: "Indique um número (0 se não puder)." });
+          valid = false;
+        }
+      } else {
+        const wants = getValues("wantsToBuyTent");
+        if (!wants) {
+          setError("wantsToBuyTent", { type: "manual", message: "Selecione uma opção." });
+          valid = false;
+        } else if (wants === "true" && tentTypes.length > 0) {
+          if (!getValues("tentPurchaseTypeId")) {
+            setError("tentPurchaseTypeId", { type: "manual", message: "Selecione o tipo de tenda." });
+            valid = false;
+          }
+          const qty = parseInt(getValues("tentPurchaseQuantity") || "", 10);
+          if (!qty || qty < 1) {
+            setError("tentPurchaseQuantity", { type: "manual", message: "Indique quantas tendas." });
+            valid = false;
+          }
+        }
+      }
+
+      if (!getValues("mattressRequired")) {
+        const n = getValues("mattressesCanProvide");
+        if (n === undefined || n === "" || parseInt(n, 10) < 0) {
+          setError("mattressesCanProvide", { type: "manual", message: "Indique um número (0 se não puder)." });
+          valid = false;
+        }
       }
     }
 
@@ -172,12 +301,30 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
       formData.set("baptized", String(values.baptized === "true"));
       formData.set("allergicTo", values.allergicTo?.trim() ?? "");
       formData.set("firstTime", String(values.firstTime === "true"));
+      formData.set("maritalStatus", values.maritalStatus);
+      const hasChildren = values.bringingChildren === "true";
+      formData.set("bringingChildren", String(hasChildren));
+      if (hasChildren) formData.set("numberOfChildren", values.numberOfChildren ?? "0");
       formData.set("transportRequired", String(values.transportRequired === "true"));
       if (values.transportRequired === "true" && values.transportStopId) {
         formData.set("transportStopId", values.transportStopId);
+      } else if (values.transportRequired === "false" && values.ownTransportType) {
+        formData.set("ownTransportType", values.ownTransportType);
+        if (values.ownTransportType === "INDIVIDUAL") {
+          formData.set("carSeats", values.carSeats ?? "");
+          formData.set("carRouteStops", values.carRouteStops ?? "");
+        }
       }
       formData.set("tentRequired", String(values.tentRequired));
       formData.set("mattressRequired", String(values.mattressRequired));
+      if (!values.tentRequired) formData.set("tentsCanProvide", values.tentsCanProvide ?? "0");
+      if (!values.mattressRequired) formData.set("mattressesCanProvide", values.mattressesCanProvide ?? "0");
+      const buyingTent = values.tentRequired && values.wantsToBuyTent === "true" && !!values.tentPurchaseTypeId;
+      formData.set("wantsToBuyTent", String(buyingTent));
+      if (buyingTent) {
+        formData.set("tentPurchaseTypeId", values.tentPurchaseTypeId!);
+        formData.set("tentPurchaseQuantity", values.tentPurchaseQuantity ?? "1");
+      }
       formData.set("isSponsored", String(sponsored));
       if (!sponsored && paymentProof) {
         formData.set("paymentProof", paymentProof);
@@ -375,6 +522,59 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
                   {...register("allergicTo")}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label>Estado civil</Label>
+                <Controller
+                  control={control}
+                  name="maritalStatus"
+                  render={({ field }) => (
+                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="SINGLE" /> Solteiro(a)
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="MARRIED" /> Casado(a)
+                      </label>
+                    </RadioGroup>
+                  )}
+                />
+                {errors.maritalStatus && <p className="text-sm text-destructive">{errors.maritalStatus.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Vai levar filho(s)?</Label>
+                <Controller
+                  control={control}
+                  name="bringingChildren"
+                  render={({ field }) => (
+                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="true" /> Sim
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="false" /> Não
+                      </label>
+                    </RadioGroup>
+                  )}
+                />
+              </div>
+
+              {bringingChildren === "true" && (
+                <div className="animate-in fade-in slide-in-from-top-1 space-y-2 duration-300">
+                  <Label htmlFor="numberOfChildren">Quantos filhos?</Label>
+                  <Input
+                    id="numberOfChildren"
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    {...register("numberOfChildren")}
+                  />
+                  {errors.numberOfChildren && (
+                    <p className="text-sm text-destructive">{errors.numberOfChildren.message}</p>
+                  )}
+                </div>
+              )}
             </section>
           )}
 
@@ -431,6 +631,52 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
                   )}
                 </div>
               )}
+
+              {transportRequired === "false" && (
+                <div className="animate-in fade-in slide-in-from-top-1 space-y-5 duration-300">
+                  <div className="space-y-2">
+                    <Label>Tem transporte individual ou vai de táxi?</Label>
+                    <Controller
+                      control={control}
+                      name="ownTransportType"
+                      render={({ field }) => (
+                        <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                          <label className="flex items-center gap-2 text-sm">
+                            <RadioGroupItem value="INDIVIDUAL" /> Transporte individual
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <RadioGroupItem value="TAXI" /> Táxi
+                          </label>
+                        </RadioGroup>
+                      )}
+                    />
+                    {errors.ownTransportType && (
+                      <p className="text-sm text-destructive">{errors.ownTransportType.message}</p>
+                    )}
+                  </div>
+
+                  {ownTransportType === "INDIVIDUAL" && (
+                    <div className="animate-in fade-in slide-in-from-top-1 space-y-4 duration-300">
+                      <div className="space-y-2">
+                        <Label htmlFor="carSeats">Quantos lugares tem o carro?</Label>
+                        <Input id="carSeats" type="number" min={1} inputMode="numeric" {...register("carSeats")} />
+                        {errors.carSeats && <p className="text-sm text-destructive">{errors.carSeats.message}</p>}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="carRouteStops">Que paragens vai passar até ao Kikuxi?</Label>
+                        <Input
+                          id="carRouteStops"
+                          placeholder="Ex.: Nova Vida, Viana, Zango..."
+                          {...register("carRouteStops")}
+                        />
+                        {errors.carRouteStops && (
+                          <p className="text-sm text-destructive">{errors.carRouteStops.message}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
           )}
 
@@ -449,6 +695,105 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
                 </Label>
               </div>
 
+              {!tentRequired && (
+                <div className="animate-in fade-in slide-in-from-top-1 space-y-2 pl-6 duration-300">
+                  <Label htmlFor="tentsCanProvide">
+                    Já tem tenda própria — pode disponibilizar tendas para o acampamento? Quantas?
+                  </Label>
+                  <Input
+                    id="tentsCanProvide"
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    {...register("tentsCanProvide")}
+                  />
+                  {errors.tentsCanProvide && (
+                    <p className="text-sm text-destructive">{errors.tentsCanProvide.message}</p>
+                  )}
+                </div>
+              )}
+
+              {tentRequired && (
+                <div className="animate-in fade-in slide-in-from-top-1 space-y-4 pl-6 duration-300">
+                  <div className="space-y-2">
+                    <Label>Pode comprar uma tenda?</Label>
+                    <Controller
+                      control={control}
+                      name="wantsToBuyTent"
+                      render={({ field }) => (
+                        <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                          <label className="flex items-center gap-2 text-sm">
+                            <RadioGroupItem value="true" /> Sim
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <RadioGroupItem value="false" /> Não
+                          </label>
+                        </RadioGroup>
+                      )}
+                    />
+                    {errors.wantsToBuyTent && (
+                      <p className="text-sm text-destructive">{errors.wantsToBuyTent.message}</p>
+                    )}
+                  </div>
+
+                  {wantsToBuyTent === "true" && (
+                    <div className="animate-in fade-in slide-in-from-top-1 space-y-4 duration-300">
+                      {tentTypes.length === 0 ? (
+                        <p className="flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+                          <Tent className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                          De momento não há tendas disponíveis para compra. A organização entrará em contacto.
+                        </p>
+                      ) : (
+                        <>
+                          <div className="space-y-2">
+                            <Label>Tipo de tenda</Label>
+                            <Controller
+                              control={control}
+                              name="tentPurchaseTypeId"
+                              render={({ field }) => (
+                                <Select onValueChange={(v) => field.onChange(v ?? "")} value={field.value || null}>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Selecione o tipo de tenda">
+                                      {(value: string | null) => {
+                                        const t = tentTypes.find((tt) => tt.id === value);
+                                        return t ? `${t.name} — ${t.price.toLocaleString("pt-PT")} Kz` : "Selecione o tipo de tenda";
+                                      }}
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {tentTypes.map((t) => (
+                                      <SelectItem key={t.id} value={t.id}>
+                                        {t.name} — {t.price.toLocaleString("pt-PT")} Kz
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
+                            {errors.tentPurchaseTypeId && (
+                              <p className="text-sm text-destructive">{errors.tentPurchaseTypeId.message}</p>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="tentPurchaseQuantity">Quantas?</Label>
+                            <Input
+                              id="tentPurchaseQuantity"
+                              type="number"
+                              min={1}
+                              inputMode="numeric"
+                              {...register("tentPurchaseQuantity")}
+                            />
+                            {errors.tentPurchaseQuantity && (
+                              <p className="text-sm text-destructive">{errors.tentPurchaseQuantity.message}</p>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center gap-2">
                 <Controller
                   control={control}
@@ -461,6 +806,24 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
                   Preciso de colchão
                 </Label>
               </div>
+
+              {!mattressRequired && (
+                <div className="animate-in fade-in slide-in-from-top-1 space-y-2 pl-6 duration-300">
+                  <Label htmlFor="mattressesCanProvide">
+                    Já tem colchão próprio — pode disponibilizar colchões apropriados para o acampamento? Quantos?
+                  </Label>
+                  <Input
+                    id="mattressesCanProvide"
+                    type="number"
+                    min={0}
+                    inputMode="numeric"
+                    {...register("mattressesCanProvide")}
+                  />
+                  {errors.mattressesCanProvide && (
+                    <p className="text-sm text-destructive">{errors.mattressesCanProvide.message}</p>
+                  )}
+                </div>
+              )}
             </section>
           )}
 
@@ -497,16 +860,12 @@ export function RegistrationForm({ stops }: { stops: TransportStopSummary[] }) {
                 <>
                   <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
                     <p className="text-sm text-muted-foreground">Valor da inscrição</p>
-                    <p className="text-2xl font-bold text-primary">
-                      {(isMemberTibl === "true" ? PAYMENT_AMOUNT_MEMBER : PAYMENT_AMOUNT_VISITOR).toLocaleString(
-                        "pt-PT",
-                      )}{" "}
-                      Kz
-                    </p>
+                    <p className="text-2xl font-bold text-primary">{totalAmount.toLocaleString("pt-PT")} Kz</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {isMemberTibl === "true"
                         ? "Valor para membros da Terceira Igreja Baptista de Luanda."
                         : "Valor para visitantes de outras igrejas."}
+                      {tentPurchaseCost > 0 && ` Inclui ${tentPurchaseCost.toLocaleString("pt-PT")} Kz de tenda(s).`}
                     </p>
                   </div>
 

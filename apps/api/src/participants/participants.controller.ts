@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -11,11 +12,13 @@ import {
   UploadedFile,
   Header,
   StreamableFile,
+  HttpCode,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
 import { ParticipantsService } from './participants.service';
 import { CreateParticipantDto } from './dto/create-participant.dto';
+import { CreateManualParticipantDto } from './dto/create-manual-participant.dto';
 import { LookupParticipantDto } from './dto/lookup-participant.dto';
 import { QueryParticipantsDto } from './dto/query-participants.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
@@ -44,6 +47,16 @@ export class ParticipantsController {
   @Post('lookup')
   lookup(@Body() dto: LookupParticipantDto) {
     return this.participantsService.lookup(dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('manual')
+  createManual(
+    @Body() dto: CreateManualParticipantDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.participantsService.createManual(dto, user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -92,5 +105,13 @@ export class ParticipantsController {
   @Patch(':id/belongings')
   updateBelongings(@Param('id') id: string, @Body() dto: UpdateBelongingsDto) {
     return this.participantsService.updateBelongings(id, dto.belongings);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Delete(':id')
+  @HttpCode(204)
+  async remove(@Param('id') id: string) {
+    await this.participantsService.softDelete(id);
   }
 }

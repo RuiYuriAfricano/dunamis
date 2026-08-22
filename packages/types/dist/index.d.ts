@@ -11,9 +11,22 @@ export declare enum PaymentStatus {
     CONFIRMED = "CONFIRMED",
     REJECTED = "REJECTED"
 }
+export declare enum MaritalStatus {
+    SINGLE = "SINGLE",
+    MARRIED = "MARRIED"
+}
+export declare enum OwnTransportType {
+    INDIVIDUAL = "INDIVIDUAL",
+    TAXI = "TAXI"
+}
 export interface TransportStopSummary {
     id: string;
     name: string;
+}
+export interface TentTypeSummary {
+    id: string;
+    name: string;
+    price: number;
 }
 export interface ParticipantSummary {
     id: string;
@@ -29,10 +42,21 @@ export interface ParticipantSummary {
     baptized: boolean;
     allergicTo: string;
     firstTime: boolean;
+    maritalStatus: MaritalStatus | null;
+    bringingChildren: boolean;
+    numberOfChildren: number;
     transportRequired: boolean;
     transportStop: TransportStopSummary | null;
+    ownTransportType: OwnTransportType | null;
+    carSeats: number | null;
+    carRouteStops: string | null;
     tentRequired: boolean;
     mattressRequired: boolean;
+    tentsCanProvide: number;
+    mattressesCanProvide: number;
+    wantsToBuyTent: boolean;
+    tentPurchaseType: TentTypeSummary | null;
+    tentPurchaseQuantity: number;
     isSponsored: boolean;
     paymentAmount: number;
     paymentProofPath: string | null;
@@ -44,6 +68,9 @@ export interface ParticipantSummary {
     checkedIn: boolean;
     checkedInAt: string | null;
     belongings: string | null;
+    registeredByAdmin: {
+        name: string;
+    } | null;
     createdAt: string;
 }
 export interface ParticipantConfirmation {

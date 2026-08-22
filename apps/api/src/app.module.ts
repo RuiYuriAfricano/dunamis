@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { ParticipantsModule } from './participants/participants.module';
 import { TransportStopsModule } from './transport-stops/transport-stops.module';
+import { TentTypesModule } from './tent-types/tent-types.module';
 import { CheckInModule } from './check-in/check-in.module';
 import { StatsModule } from './stats/stats.module';
 
@@ -18,6 +19,7 @@ import { StatsModule } from './stats/stats.module';
     AuthModule,
     ParticipantsModule,
     TransportStopsModule,
+    TentTypesModule,
     CheckInModule,
     StatsModule,
   ],

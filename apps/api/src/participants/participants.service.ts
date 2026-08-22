@@ -5,13 +5,14 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, PaymentStatus } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import * as QRCode from 'qrcode';
 import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { CreateParticipantDto } from './dto/create-participant.dto';
+import { CreateManualParticipantDto } from './dto/create-manual-participant.dto';
 import { LookupParticipantDto } from './dto/lookup-participant.dto';
 import { QueryParticipantsDto } from './dto/query-participants.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
@@ -44,10 +45,21 @@ const PARTICIPANT_SUMMARY_SELECT = {
   baptized: true,
   allergicTo: true,
   firstTime: true,
+  maritalStatus: true,
+  bringingChildren: true,
+  numberOfChildren: true,
   transportRequired: true,
   transportStop: { select: { id: true, name: true } },
+  ownTransportType: true,
+  carSeats: true,
+  carRouteStops: true,
   tentRequired: true,
   mattressRequired: true,
+  tentsCanProvide: true,
+  mattressesCanProvide: true,
+  wantsToBuyTent: true,
+  tentPurchaseType: { select: { id: true, name: true, price: true } },
+  tentPurchaseQuantity: true,
   isSponsored: true,
   paymentAmount: true,
   paymentProofPath: true,
@@ -57,8 +69,13 @@ const PARTICIPANT_SUMMARY_SELECT = {
   checkedIn: true,
   checkedInAt: true,
   belongings: true,
+  registeredByAdmin: { select: { name: true } },
   createdAt: true,
 } satisfies Prisma.ParticipantSelect;
+
+type ParticipantWithTransportStop = Prisma.ParticipantGetPayload<{
+  include: { transportStop: { select: { id: true; name: true } } };
+}>;
 
 @Injectable()
 export class ParticipantsService {
@@ -73,32 +90,15 @@ export class ParticipantsService {
     dto: CreateParticipantDto,
     paymentProof: Express.Multer.File | undefined,
   ) {
-    if (dto.transportRequired && dto.transportStopId) {
-      const stop = await this.prisma.transportStop.findUnique({
-        where: { id: dto.transportStopId },
-      });
-      if (!stop || !stop.active) {
-        throw new BadRequestException('Paragem de transporte inválida.');
-      }
-    }
+    await this.assertTransportStopValid(dto);
 
     if (!dto.isSponsored && !paymentProof) {
       throw new BadRequestException('Comprovativo de pagamento é obrigatório.');
     }
 
-    const birthDate = new Date(dto.birthDate);
-    const now = new Date();
-    if (Number.isNaN(birthDate.getTime()) || birthDate > now) {
-      throw new BadRequestException('Data de nascimento inválida.');
-    }
-    let age = now.getFullYear() - birthDate.getFullYear();
-    const monthDiff = now.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) {
-      age -= 1;
-    }
-    if (age < 13 || age > 120) {
-      throw new BadRequestException('A idade mínima para participar é 13 anos.');
-    }
+    this.assertBirthDateValid(dto.birthDate);
+
+    const tentPurchaseAmount = await this.computeTentPurchaseAmount(dto);
 
     // Checked before the (slower, network-bound) proof upload so a duplicate
     // registration fails fast without wasting a Supabase Storage write.
@@ -114,22 +114,78 @@ export class ParticipantsService {
         ? null
         : await storePaymentProof(paymentProof);
 
-    let participant: Prisma.ParticipantGetPayload<{
-      include: { transportStop: { select: { id: true; name: true } } };
-    }>;
+    const participant = await this.insertParticipant(dto, {
+      paymentProofPath,
+      tentPurchaseAmount,
+    });
+
+    const qrCodeDataUrl = await QRCode.toDataURL(participant.qrToken, {
+      margin: 1,
+      width: 320,
+    });
+
+    return { ...this.toConfirmation(participant), qrCodeDataUrl };
+  }
+
+  /**
+   * Admin-only: registers someone who has no way to use the public form
+   * themselves. Skips the payment proof upload — the admin sets the payment
+   * status directly, having already verified it some other way — and, unlike
+   * the public flow, can create the record already CONFIRMED so the QR/email
+   * goes out immediately instead of waiting on a separate review step.
+   */
+  async createManual(dto: CreateManualParticipantDto, adminId: string) {
+    await this.assertTransportStopValid(dto);
+    this.assertBirthDateValid(dto.birthDate);
+    const tentPurchaseAmount = await this.computeTentPurchaseAmount(dto);
+    await this.assertContactIsUnique(dto.email, dto.phone, dto.whatsapp);
+
+    const status = dto.paymentStatus ?? PaymentStatus.CONFIRMED;
+
+    const participant = await this.insertParticipant(dto, {
+      paymentProofPath: null,
+      tentPurchaseAmount,
+      registeredByAdminId: adminId,
+      paymentStatus: status,
+      paymentReviewedById: status === PaymentStatus.PENDING ? null : adminId,
+      paymentReviewedAt: status === PaymentStatus.PENDING ? null : new Date(),
+    });
+
+    this.dispatchPaymentStatusEmail(participant, status);
+
+    return this.findOne(participant.id);
+  }
+
+  private async insertParticipant(
+    dto: CreateParticipantDto,
+    extra: {
+      paymentProofPath: string | null;
+      tentPurchaseAmount: number;
+      registeredByAdminId?: string;
+      paymentStatus?: PaymentStatus;
+      paymentReviewedById?: string | null;
+      paymentReviewedAt?: Date | null;
+    },
+  ): Promise<ParticipantWithTransportStop> {
     try {
-      participant = await this.prisma.$transaction(async (tx) => {
+      return await this.prisma.$transaction(async (tx) => {
         const [{ value }] = await tx.$queryRaw<
           { value: number }[]
         >`SELECT nextval('registration_number_seq')::int AS value`;
 
         const registrationNumber = `DUN-${new Date().getFullYear()}-${String(value).padStart(6, '0')}`;
         const qrToken = nanoid(24);
+        const baseAmount = dto.isMemberTibl
+          ? PAYMENT_AMOUNT_MEMBER
+          : PAYMENT_AMOUNT_VISITOR;
         const paymentAmount = dto.isSponsored
           ? 0
-          : dto.isMemberTibl
-            ? PAYMENT_AMOUNT_MEMBER
-            : PAYMENT_AMOUNT_VISITOR;
+          : baseAmount + extra.tentPurchaseAmount;
+
+        const wantsToBuyTent = dto.tentRequired && !!dto.wantsToBuyTent;
+        const hasOwnTransport = !dto.transportRequired;
+        const hasIndividualTransport =
+          hasOwnTransport && dto.ownTransportType === 'INDIVIDUAL';
 
         return tx.participant.create({
           data: {
@@ -145,13 +201,42 @@ export class ParticipantsService {
             baptized: dto.baptized,
             allergicTo: dto.allergicTo ?? '',
             firstTime: dto.firstTime,
+            maritalStatus: dto.maritalStatus,
+            bringingChildren: dto.bringingChildren,
+            numberOfChildren: dto.bringingChildren
+              ? (dto.numberOfChildren ?? 0)
+              : 0,
             transportRequired: dto.transportRequired,
             transportStopId: dto.transportRequired ? dto.transportStopId : null,
+            ownTransportType: hasOwnTransport
+              ? (dto.ownTransportType ?? null)
+              : null,
+            carSeats: hasIndividualTransport ? (dto.carSeats ?? null) : null,
+            carRouteStops: hasIndividualTransport
+              ? (dto.carRouteStops ?? null)
+              : null,
             tentRequired: dto.tentRequired,
             mattressRequired: dto.mattressRequired,
+            tentsCanProvide: !dto.tentRequired
+              ? (dto.tentsCanProvide ?? 0)
+              : 0,
+            mattressesCanProvide: !dto.mattressRequired
+              ? (dto.mattressesCanProvide ?? 0)
+              : 0,
+            wantsToBuyTent,
+            tentPurchaseTypeId: wantsToBuyTent
+              ? dto.tentPurchaseTypeId
+              : null,
+            tentPurchaseQuantity: wantsToBuyTent
+              ? (dto.tentPurchaseQuantity ?? 0)
+              : 0,
             isSponsored: dto.isSponsored,
             paymentAmount,
-            paymentProofPath,
+            paymentProofPath: extra.paymentProofPath,
+            paymentStatus: extra.paymentStatus,
+            paymentReviewedById: extra.paymentReviewedById,
+            paymentReviewedAt: extra.paymentReviewedAt,
+            registeredByAdminId: extra.registeredByAdminId,
             qrToken,
           },
           include: { transportStop: { select: { id: true, name: true } } },
@@ -168,12 +253,9 @@ export class ParticipantsService {
       }
       throw error;
     }
+  }
 
-    const qrCodeDataUrl = await QRCode.toDataURL(participant.qrToken, {
-      margin: 1,
-      width: 320,
-    });
-
+  private toConfirmation(participant: ParticipantWithTransportStop) {
     return {
       id: participant.id,
       registrationNumber: participant.registrationNumber,
@@ -186,8 +268,51 @@ export class ParticipantsService {
       paymentAmount: participant.paymentAmount,
       paymentProofPath: participant.paymentProofPath,
       paymentStatus: participant.paymentStatus,
-      qrCodeDataUrl,
     };
+  }
+
+  private async assertTransportStopValid(dto: CreateParticipantDto) {
+    if (dto.transportRequired && dto.transportStopId) {
+      const stop = await this.prisma.transportStop.findUnique({
+        where: { id: dto.transportStopId },
+      });
+      if (!stop || !stop.active) {
+        throw new BadRequestException('Paragem de transporte inválida.');
+      }
+    }
+  }
+
+  private assertBirthDateValid(birthDateInput: string) {
+    const birthDate = new Date(birthDateInput);
+    const now = new Date();
+    if (Number.isNaN(birthDate.getTime()) || birthDate > now) {
+      throw new BadRequestException('Data de nascimento inválida.');
+    }
+    let age = now.getFullYear() - birthDate.getFullYear();
+    const monthDiff = now.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) {
+      age -= 1;
+    }
+    if (age < 13 || age > 120) {
+      throw new BadRequestException('A idade mínima para participar é 13 anos.');
+    }
+  }
+
+  private async computeTentPurchaseAmount(
+    dto: CreateParticipantDto,
+  ): Promise<number> {
+    if (!dto.tentRequired || !dto.wantsToBuyTent || !dto.tentPurchaseTypeId) {
+      return 0;
+    }
+
+    const tentType = await this.prisma.tentType.findUnique({
+      where: { id: dto.tentPurchaseTypeId },
+    });
+    if (!tentType || !tentType.active) {
+      throw new BadRequestException('Tipo de tenda inválido.');
+    }
+
+    return tentType.price * (dto.tentPurchaseQuantity ?? 0);
   }
 
   private async assertContactIsUnique(
@@ -216,6 +341,7 @@ export class ParticipantsService {
       where: {
         registrationNumber: dto.registrationNumber.trim().toUpperCase(),
         phone: dto.phone.trim(),
+        deletedAt: null,
       },
       include: { transportStop: { select: { id: true, name: true } } },
     });
@@ -231,20 +357,7 @@ export class ParticipantsService {
       width: 320,
     });
 
-    return {
-      id: participant.id,
-      registrationNumber: participant.registrationNumber,
-      fullName: participant.fullName,
-      church: participant.church,
-      transportStop: participant.transportStop,
-      tentRequired: participant.tentRequired,
-      mattressRequired: participant.mattressRequired,
-      isSponsored: participant.isSponsored,
-      paymentAmount: participant.paymentAmount,
-      paymentProofPath: participant.paymentProofPath,
-      paymentStatus: participant.paymentStatus,
-      qrCodeDataUrl,
-    };
+    return { ...this.toConfirmation(participant), qrCodeDataUrl };
   }
 
   async findAll(query: QueryParticipantsDto) {
@@ -290,13 +403,23 @@ export class ParticipantsService {
       select: PARTICIPANT_SUMMARY_SELECT,
     });
 
-    // Email delivery never blocks or fails the review action itself — the
-    // payment status is already saved regardless of whether Gmail is reachable.
-    if (dto.status === 'CONFIRMED') {
+    this.dispatchPaymentStatusEmail(participant, dto.status);
+
+    return updated;
+  }
+
+  // Email delivery never blocks or fails the review/creation action itself —
+  // the payment status is already saved regardless of whether Gmail/Brevo is
+  // reachable.
+  private dispatchPaymentStatusEmail(
+    participant: ParticipantWithTransportStop,
+    status: PaymentStatus,
+  ) {
+    if (status === PaymentStatus.CONFIRMED) {
       this.sendConfirmationEmail(participant).catch((error) =>
         this.logger.error(`Falha ao enviar email de confirmação: ${error.message}`),
       );
-    } else if (dto.status === 'REJECTED') {
+    } else if (status === PaymentStatus.REJECTED) {
       this.mail
         .sendPaymentRejectedEmail({
           to: participant.email,
@@ -307,15 +430,9 @@ export class ParticipantsService {
           this.logger.error(`Falha ao enviar email de rejeição: ${error.message}`),
         );
     }
-
-    return updated;
   }
 
-  private async sendConfirmationEmail(
-    participant: Prisma.ParticipantGetPayload<{
-      include: { transportStop: { select: { id: true; name: true } } };
-    }>,
-  ) {
+  private async sendConfirmationEmail(participant: ParticipantWithTransportStop) {
     const pdfBuffer = await generateRegistrationPdf({
       registrationNumber: participant.registrationNumber,
       fullName: participant.fullName,
@@ -350,9 +467,23 @@ export class ParticipantsService {
     });
   }
 
-  async findOne(id: string) {
+  async softDelete(id: string) {
     const participant = await this.prisma.participant.findUnique({
       where: { id },
+    });
+    if (!participant || participant.deletedAt) {
+      throw new NotFoundException('Participante não encontrado.');
+    }
+
+    await this.prisma.participant.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async findOne(id: string) {
+    const participant = await this.prisma.participant.findFirst({
+      where: { id, deletedAt: null },
       select: PARTICIPANT_SUMMARY_SELECT,
     });
 
@@ -365,6 +496,7 @@ export class ParticipantsService {
 
   async exportXlsx(): Promise<Buffer> {
     const participants = await this.prisma.participant.findMany({
+      where: { deletedAt: null },
       select: PARTICIPANT_SUMMARY_SELECT,
       orderBy: { createdAt: 'asc' },
     });
@@ -374,9 +506,13 @@ export class ParticipantsService {
 
     sheet.columns = [
       { header: 'Número de Inscrição', key: 'registrationNumber', width: 20 },
+      { header: 'Data de Inscrição', key: 'createdAt', width: 20 },
       { header: 'Nome', key: 'fullName', width: 30 },
       { header: 'Sexo', key: 'gender', width: 10 },
       { header: 'Idade', key: 'age', width: 8 },
+      { header: 'Estado Civil', key: 'maritalStatus', width: 14 },
+      { header: 'Leva Filhos', key: 'bringingChildren', width: 12 },
+      { header: 'Nº de Filhos', key: 'numberOfChildren', width: 12 },
       { header: 'Telefone', key: 'phone', width: 16 },
       { header: 'WhatsApp', key: 'whatsapp', width: 16 },
       { header: 'Email', key: 'email', width: 28 },
@@ -385,16 +521,24 @@ export class ParticipantsService {
       { header: 'Baptizado', key: 'baptized', width: 12 },
       { header: 'Alérgico a', key: 'allergicTo', width: 24 },
       { header: 'Primeira Participação', key: 'firstTime', width: 20 },
-      { header: 'Transporte', key: 'transportRequired', width: 14 },
+      { header: 'Transporte da Organização', key: 'transportRequired', width: 22 },
       { header: 'Paragem', key: 'transportStop', width: 22 },
-      { header: 'Tenda', key: 'tentRequired', width: 10 },
-      { header: 'Colchão', key: 'mattressRequired', width: 10 },
+      { header: 'Transporte Próprio', key: 'ownTransportType', width: 18 },
+      { header: 'Lugares no Carro', key: 'carSeats', width: 16 },
+      { header: 'Paragens no Trajeto', key: 'carRouteStops', width: 26 },
+      { header: 'Precisa de Tenda', key: 'tentRequired', width: 16 },
+      { header: 'Pode Disponibilizar Tendas', key: 'tentsCanProvide', width: 22 },
+      { header: 'Quer Comprar Tenda', key: 'wantsToBuyTent', width: 18 },
+      { header: 'Tipo de Tenda Comprada', key: 'tentPurchaseType', width: 22 },
+      { header: 'Qtd. Tendas Compradas', key: 'tentPurchaseQuantity', width: 20 },
+      { header: 'Precisa de Colchão', key: 'mattressRequired', width: 16 },
+      { header: 'Pode Disponibilizar Colchões', key: 'mattressesCanProvide', width: 24 },
       { header: 'Patrocinado', key: 'isSponsored', width: 14 },
       { header: 'Valor (Kz)', key: 'paymentAmount', width: 12 },
       { header: 'Comprovativo', key: 'paymentProofPath', width: 30 },
       { header: 'Estado do Pagamento', key: 'paymentStatus', width: 18 },
       { header: 'Check-in', key: 'checkedIn', width: 12 },
-      { header: 'Data da Inscrição', key: 'createdAt', width: 20 },
+      { header: 'Registado por Admin', key: 'registeredByAdmin', width: 20 },
     ];
     sheet.getRow(1).font = { bold: true };
 
@@ -407,9 +551,13 @@ export class ParticipantsService {
 
       sheet.addRow({
         registrationNumber: p.registrationNumber,
+        createdAt: p.createdAt.toISOString().slice(0, 16).replace('T', ' '),
         fullName: p.fullName,
         gender: p.gender === 'MALE' ? 'Masculino' : 'Feminino',
         age,
+        maritalStatus: p.maritalStatus === 'MARRIED' ? 'Casado(a)' : p.maritalStatus === 'SINGLE' ? 'Solteiro(a)' : '-',
+        bringingChildren: p.bringingChildren ? 'Sim' : 'Não',
+        numberOfChildren: p.bringingChildren ? p.numberOfChildren : 0,
         phone: p.phone,
         whatsapp: p.whatsapp,
         email: p.email,
@@ -420,14 +568,22 @@ export class ParticipantsService {
         firstTime: p.firstTime ? 'Sim' : 'Não',
         transportRequired: p.transportRequired ? 'Sim' : 'Não',
         transportStop: p.transportStop?.name ?? '-',
+        ownTransportType: p.ownTransportType === 'INDIVIDUAL' ? 'Individual' : p.ownTransportType === 'TAXI' ? 'Táxi' : '-',
+        carSeats: p.carSeats ?? '-',
+        carRouteStops: p.carRouteStops || '-',
         tentRequired: p.tentRequired ? 'Sim' : 'Não',
+        tentsCanProvide: p.tentsCanProvide,
+        wantsToBuyTent: p.wantsToBuyTent ? 'Sim' : 'Não',
+        tentPurchaseType: p.tentPurchaseType?.name ?? '-',
+        tentPurchaseQuantity: p.tentPurchaseQuantity,
         mattressRequired: p.mattressRequired ? 'Sim' : 'Não',
+        mattressesCanProvide: p.mattressesCanProvide,
         isSponsored: p.isSponsored ? 'Sim' : 'Não',
         paymentAmount: p.paymentAmount,
         paymentProofPath: p.paymentProofPath ?? '-',
         paymentStatus: PAYMENT_STATUS_LABELS[p.paymentStatus],
         checkedIn: p.checkedIn ? 'Sim' : 'Não',
-        createdAt: p.createdAt.toISOString().slice(0, 16).replace('T', ' '),
+        registeredByAdmin: p.registeredByAdmin?.name ?? '-',
       });
     }
 
@@ -438,7 +594,7 @@ export class ParticipantsService {
   private buildWhere(
     query: QueryParticipantsDto,
   ): Prisma.ParticipantWhereInput {
-    const where: Prisma.ParticipantWhereInput = {};
+    const where: Prisma.ParticipantWhereInput = { deletedAt: null };
 
     if (query.search) {
       where.OR = [

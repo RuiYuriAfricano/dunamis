@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Banknote, CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageLoading } from "@/components/ui/page-loading";
@@ -9,6 +9,15 @@ import { useSession } from "@/lib/use-session";
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { DashboardStats } from "@dunamis/types";
+
+const CHART_PALETTE = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--dunamis-green)",
+];
 
 const CARD_THEME = [
   { bg: "bg-primary/10", text: "text-primary" },
@@ -112,14 +121,18 @@ export default function DashboardPage() {
             <CardTitle>Inscritos por paragem de transporte</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-72 w-full text-primary">
+            <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats.byTransportStop}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="stopName" tick={{ fontSize: 12 }} />
                   <YAxis allowDecimals={false} />
                   <Tooltip />
-                  <Bar dataKey="total" fill="currentColor" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                    {stats.byTransportStop.map((entry, i) => (
+                      <Cell key={entry.stopName} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -131,14 +144,18 @@ export default function DashboardPage() {
             <CardTitle>Inscritos por faixa etária</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-72 w-full text-dunamis-green">
+            <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats.byAgeGroup}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="ageGroup" tick={{ fontSize: 12 }} />
                   <YAxis allowDecimals={false} />
                   <Tooltip />
-                  <Bar dataKey="total" fill="currentColor" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                    {stats.byAgeGroup.map((entry, i) => (
+                      <Cell key={entry.ageGroup} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
