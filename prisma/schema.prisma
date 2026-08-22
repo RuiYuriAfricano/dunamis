@@ -106,6 +106,8 @@ model Participant {
   registeredByAdminId      String?           @map("registered_by_admin_id")
   registeredByAdmin        User?             @relation("ManualRegistration", fields: [registeredByAdminId], references: [id])
   deletedAt                DateTime?         @map("deleted_at")
+  deletedByAdminId         String?           @map("deleted_by_admin_id")
+  deletedByAdmin           User?             @relation("DeletedRegistration", fields: [deletedByAdminId], references: [id])
   checkIn                  CheckIn?
   createdAt                DateTime          @default(now()) @map("created_at")
   updatedAt                DateTime          @updatedAt @map("updated_at")
@@ -127,6 +129,7 @@ model User {
   checkedInParticipants Participant[] @relation("CheckInOperator")
   paymentReviews        Participant[] @relation("PaymentReviewer")
   manualRegistrations   Participant[] @relation("ManualRegistration")
+  deletedRegistrations  Participant[] @relation("DeletedRegistration")
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
 

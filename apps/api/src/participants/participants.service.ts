@@ -499,7 +499,7 @@ export class ParticipantsService {
     });
   }
 
-  async softDelete(id: string) {
+  async softDelete(id: string, adminId: string) {
     const participant = await this.prisma.participant.findUnique({
       where: { id },
     });
@@ -509,7 +509,7 @@ export class ParticipantsService {
 
     await this.prisma.participant.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), deletedByAdminId: adminId },
     });
   }
 

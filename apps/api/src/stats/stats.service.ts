@@ -44,6 +44,9 @@ export class StatsService {
       peopleBuyingMattress,
       myValidations,
       myRejections,
+      myManualRegistrations,
+      myDeletions,
+      myCheckIns,
     ] = await Promise.all([
       this.prisma.participant.count(),
       this.prisma.participant.count({ where: { gender: 'MALE' } }),
@@ -74,6 +77,15 @@ export class StatsService {
       }),
       this.prisma.participant.count({
         where: { paymentReviewedById: userId, paymentStatus: 'REJECTED' },
+      }),
+      this.prisma.participant.count({
+        where: { registeredByAdminId: userId },
+      }),
+      this.prisma.participant.count({
+        where: { deletedByAdminId: userId },
+      }),
+      this.prisma.participant.count({
+        where: { checkedInById: userId },
       }),
     ]);
 
@@ -113,6 +125,9 @@ export class StatsService {
       totalPeopleBuyingMattress: peopleBuyingMattress,
       myValidations,
       myRejections,
+      myManualRegistrations,
+      myDeletions,
+      myCheckIns,
       byTransportStop: stops.map((stop) => ({
         stopName: stop.name,
         total: stop._count.participants,

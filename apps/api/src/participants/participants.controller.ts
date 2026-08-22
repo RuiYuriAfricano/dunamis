@@ -113,7 +113,7 @@ export class ParticipantsController {
   @Roles('ADMIN')
   @Delete(':id')
   @HttpCode(204)
-  async remove(@Param('id') id: string) {
-    await this.participantsService.softDelete(id);
+  async remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    await this.participantsService.softDelete(id, user.id);
   }
 }

@@ -117,6 +117,9 @@ export interface DashboardStats {
     totalPeopleBuyingMattress: number;
     myValidations: number;
     myRejections: number;
+    myManualRegistrations: number;
+    myDeletions: number;
+    myCheckIns: number;
     byTransportStop: TransportStopStat[];
     byAgeGroup: AgeGroupStat[];
     byRegistrationDay: RegistrationDayStat[];
