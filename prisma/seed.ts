@@ -22,13 +22,13 @@ const TRANSPORT_STOPS = [
   "Kilamba/11",
 ];
 
-// Preços de exemplo (hipotéticos) — ajuste em Prisma Studio ou aqui antes de
-// abrir a compra de tendas a sério.
+// Tipos de tenda apenas para orientar o participante sobre o que comprar —
+// a inscrição não vende tendas, por isso não há preço associado.
 const TENT_TYPES = [
-  { name: "Tenda 1-2 pessoas", price: 5000 },
-  { name: "Tenda 3-4 pessoas", price: 8000 },
-  { name: "Tenda 5-6 pessoas", price: 12000 },
-  { name: "Tenda 8+ pessoas (família)", price: 18000 },
+  "Tenda 1-2 pessoas",
+  "Tenda 3-4 pessoas",
+  "Tenda 5-6 pessoas",
+  "Tenda 8+ pessoas (família)",
 ];
 
 const TEAM_ADMINS = [
@@ -65,11 +65,11 @@ async function main() {
     });
   }
 
-  for (const tentType of TENT_TYPES) {
+  for (const name of TENT_TYPES) {
     await prisma.tentType.upsert({
-      where: { name: tentType.name },
+      where: { name },
       update: {},
-      create: tentType,
+      create: { name },
     });
   }
 

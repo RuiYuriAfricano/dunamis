@@ -118,11 +118,11 @@ export default function DashboardPage() {
           <CardHeader className="px-4">
             <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <Tent className="size-3.5" aria-hidden />
-              Tendas a comprar
+              Pessoas que vão comprar tenda
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 text-2xl font-bold text-chart-3">
-            {stats.totalTentsPurchased}
+            {stats.totalPeopleBuyingTent}
           </CardContent>
         </Card>
 
@@ -130,11 +130,11 @@ export default function DashboardPage() {
           <CardHeader className="px-4">
             <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <BedSingle className="size-3.5" aria-hidden />
-              Colchões a comprar
+              Pessoas que vão comprar colchão
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 text-2xl font-bold text-cross">
-            {stats.totalMattressesPurchased}
+            {stats.totalPeopleBuyingMattress}
           </CardContent>
         </Card>
       </div>

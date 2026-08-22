@@ -47,7 +47,6 @@ model TransportStop {
 model TentType {
   id           String        @id @default(cuid())
   name         String        @unique
-  price        Int
   active       Boolean       @default(true)
   participants Participant[]
   createdAt    DateTime      @default(now())
@@ -97,6 +96,7 @@ model Participant {
   paymentReviewedById      String?           @map("payment_reviewed_by_id")
   paymentReviewedBy        User?             @relation("PaymentReviewer", fields: [paymentReviewedById], references: [id])
   paymentReviewedAt        DateTime?         @map("payment_reviewed_at")
+  paymentRejectionReason   String?           @map("payment_rejection_reason")
   qrToken                  String            @unique @map("qr_token")
   checkedIn                Boolean           @default(false) @map("checked_in")
   checkedInAt              DateTime?         @map("checked_in_at")

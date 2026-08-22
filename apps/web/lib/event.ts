@@ -7,5 +7,3 @@ export const EVENT_PHONE = "+244 943 027 584";
 
 export const PAYMENT_AMOUNT_VISITOR = 2500;
 export const PAYMENT_AMOUNT_MEMBER = 5000;
-// Placeholder price, mirrors apps/api — adjust once a real figure is set.
-export const MATTRESS_PRICE_KZ = 2000;

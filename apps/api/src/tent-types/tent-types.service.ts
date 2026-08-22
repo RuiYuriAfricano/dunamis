@@ -8,8 +8,8 @@ export class TentTypesService {
   findActive() {
     return this.prisma.tentType.findMany({
       where: { active: true },
-      orderBy: { price: 'asc' },
-      select: { id: true, name: true, price: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
     });
   }
 }

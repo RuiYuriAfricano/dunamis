@@ -32,7 +32,6 @@ export interface TransportStopSummary {
 export interface TentTypeSummary {
   id: string;
   name: string;
-  price: number;
 }
 
 export interface ParticipantSummary {
@@ -73,6 +72,7 @@ export interface ParticipantSummary {
   paymentStatus: PaymentStatus;
   paymentReviewedAt: string | null;
   paymentReviewedBy: { name: string } | null;
+  paymentRejectionReason: string | null;
   checkedIn: boolean;
   checkedInAt: string | null;
   belongings: string | null;
@@ -121,8 +121,8 @@ export interface DashboardStats {
   totalMattressRequired: number;
   totalCheckedIn: number;
   totalRevenueKz: number;
-  totalTentsPurchased: number;
-  totalMattressesPurchased: number;
+  totalPeopleBuyingTent: number;
+  totalPeopleBuyingMattress: number;
   myValidations: number;
   myRejections: number;
   byTransportStop: TransportStopStat[];

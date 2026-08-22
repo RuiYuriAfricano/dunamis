@@ -16,6 +16,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,7 +35,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/lib/use-session";
 import { apiFetch, API_URL, paymentProofUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { PaymentStatus, type ParticipantSummary, type TransportStopSummary } from "@dunamis/types";
+import { MaritalStatus, PaymentStatus, type ParticipantSummary, type TransportStopSummary } from "@dunamis/types";
 
 const TRI_STATE_OPTIONS = [
   { value: "all", label: "Todos" },
@@ -67,9 +75,13 @@ interface Filters {
   firstTime: string;
   isMemberTibl: string;
   baptized: string;
+  maritalStatus: string;
+  bringingChildren: string;
   transportRequired: string;
   tentRequired: string;
   mattressRequired: string;
+  wantsToBuyTent: string;
+  wantsToBuyMattress: string;
   isSponsored: string;
   checkedIn: string;
   paymentStatus: string;
@@ -82,13 +94,23 @@ const DEFAULT_FILTERS: Filters = {
   firstTime: "all",
   isMemberTibl: "all",
   baptized: "all",
+  maritalStatus: "all",
+  bringingChildren: "all",
   transportRequired: "all",
   tentRequired: "all",
   mattressRequired: "all",
+  wantsToBuyTent: "all",
+  wantsToBuyMattress: "all",
   isSponsored: "all",
   checkedIn: "all",
   paymentStatus: "all",
 };
+
+const MARITAL_STATUS_OPTIONS = [
+  { value: "all", label: "Todos" },
+  { value: MaritalStatus.SINGLE, label: "Solteiro(a)" },
+  { value: MaritalStatus.MARRIED, label: "Casado(a)" },
+];
 
 const PAGE_SIZE = 25;
 
@@ -115,6 +137,9 @@ export default function ParticipantsPage() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [rejectingParticipant, setRejectingParticipant] = useState<ParticipantSummary | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejectionReasonError, setRejectionReasonError] = useState<string | null>(null);
   const [editingBelongingsId, setEditingBelongingsId] = useState<string | null>(null);
   const [belongingsDraft, setBelongingsDraft] = useState("");
   const [savingBelongings, setSavingBelongings] = useState(false);
@@ -130,7 +155,20 @@ export default function ParticipantsPage() {
     if (filters.gender !== "all") params.set("gender", filters.gender);
     if (filters.transportStopId !== "all") params.set("transportStopId", filters.transportStopId);
     if (filters.paymentStatus !== "all") params.set("paymentStatus", filters.paymentStatus);
-    for (const key of ["firstTime", "isMemberTibl", "baptized", "transportRequired", "tentRequired", "mattressRequired", "isSponsored", "checkedIn"] as const) {
+    if (filters.maritalStatus !== "all") params.set("maritalStatus", filters.maritalStatus);
+    for (const key of [
+      "firstTime",
+      "isMemberTibl",
+      "baptized",
+      "bringingChildren",
+      "transportRequired",
+      "tentRequired",
+      "mattressRequired",
+      "wantsToBuyTent",
+      "wantsToBuyMattress",
+      "isSponsored",
+      "checkedIn",
+    ] as const) {
       if (filters[key] !== "all") params.set(key, filters[key]);
     }
     params.set("page", String(page));
@@ -172,14 +210,14 @@ export default function ParticipantsPage() {
     }
   }
 
-  async function reviewPayment(id: string, status: "CONFIRMED" | "REJECTED") {
+  async function reviewPayment(id: string, status: "CONFIRMED" | "REJECTED", reason?: string) {
     if (!session) return;
     setReviewingId(id);
     try {
       const updated = await apiFetch<ParticipantSummary>(`/participants/${id}/payment-status`, {
         method: "PATCH",
         token: session.accessToken,
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(status === "REJECTED" ? { status, reason } : { status }),
       });
       setData((prev) =>
         prev ? { ...prev, data: prev.data.map((p) => (p.id === id ? updated : p)) } : prev,
@@ -187,6 +225,22 @@ export default function ParticipantsPage() {
     } finally {
       setReviewingId(null);
     }
+  }
+
+  function openRejectDialog(p: ParticipantSummary) {
+    setRejectingParticipant(p);
+    setRejectionReason("");
+    setRejectionReasonError(null);
+  }
+
+  async function confirmReject() {
+    if (!rejectingParticipant) return;
+    if (!rejectionReason.trim()) {
+      setRejectionReasonError("Indique o motivo da rejeição.");
+      return;
+    }
+    await reviewPayment(rejectingParticipant.id, "REJECTED", rejectionReason.trim());
+    setRejectingParticipant(null);
   }
 
   function startEditingBelongings(p: ParticipantSummary) {
@@ -316,14 +370,34 @@ export default function ParticipantsPage() {
           </SelectContent>
         </Select>
 
+        <Select value={filters.maritalStatus} onValueChange={(v) => updateFilter("maritalStatus", v ?? "all")}>
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="Estado civil">
+              {(value: string) =>
+                `Estado civil: ${MARITAL_STATUS_OPTIONS.find((opt) => opt.value === value)?.label ?? "Todos"}`
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {MARITAL_STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                Estado civil: {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         {(
           [
             ["firstTime", "Primeira vez"],
             ["isMemberTibl", "Membro TIBL"],
             ["baptized", "Baptizado"],
+            ["bringingChildren", "Leva filhos"],
             ["transportRequired", "Transporte"],
             ["tentRequired", "Tenda"],
             ["mattressRequired", "Colchão"],
+            ["wantsToBuyTent", "Compra tenda"],
+            ["wantsToBuyMattress", "Compra colchão"],
             ["isSponsored", "Patrocinado"],
             ["checkedIn", "Check-in"],
           ] as const
@@ -359,11 +433,13 @@ export default function ParticipantsPage() {
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Membro TIBL</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Baptizado</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">1ª vez</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Estado Civil</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Filhos</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Telefone</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">WhatsApp</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Email</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Alérgico a</TableHead>
-              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Paragem</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Transporte</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Tenda</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Colchão</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Patrocinado</TableHead>
@@ -376,7 +452,7 @@ export default function ParticipantsPage() {
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={20} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={22} className="py-10 text-center text-muted-foreground">
                   <div className="flex items-center justify-center gap-2">
                     <Spinner className="size-4" />A carregar inscritos...
                   </div>
@@ -386,7 +462,7 @@ export default function ParticipantsPage() {
 
             {!loading && data?.data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={20} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={22} className="py-8 text-center text-muted-foreground">
                   Nenhum inscrito encontrado.
                 </TableCell>
               </TableRow>
@@ -427,11 +503,30 @@ export default function ParticipantsPage() {
                       <Badge variant={p.baptized ? "default" : "secondary"}>{p.baptized ? "Sim" : "Não"}</Badge>
                     </TableCell>
                     <TableCell className="text-sm">{p.firstTime ? "Sim" : "Não"}</TableCell>
+                    <TableCell className="text-sm">
+                      {p.maritalStatus === "MARRIED" ? "Casado(a)" : p.maritalStatus === "SINGLE" ? "Solteiro(a)" : "-"}
+                    </TableCell>
+                    <TableCell className="text-sm">{p.bringingChildren ? `Sim (${p.numberOfChildren})` : "Não"}</TableCell>
                     <TableCell className="text-sm">{p.phone}</TableCell>
                     <TableCell className="text-sm">{p.whatsapp}</TableCell>
                     <TableCell className="text-sm">{p.email}</TableCell>
                     <TableCell className="text-sm">{p.allergicTo || "-"}</TableCell>
-                    <TableCell className="text-sm">{p.transportStop?.name ?? "-"}</TableCell>
+                    <TableCell className="text-sm">
+                      {p.transportStop ? (
+                        <p>{p.transportStop.name}</p>
+                      ) : p.ownTransportType ? (
+                        <>
+                          <p>{p.ownTransportType === "INDIVIDUAL" ? "Transporte individual" : "Táxi"}</p>
+                          {p.ownTransportType === "INDIVIDUAL" && (
+                            <p className="text-xs text-muted-foreground">
+                              {p.carSeats} lugares · {p.carRouteStops}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm">
                       <p>{p.tentRequired ? "Sim" : "Não"}</p>
                       {!p.tentRequired && p.tentsCanProvide > 0 && (
@@ -475,6 +570,9 @@ export default function ParticipantsPage() {
                             <span className="font-medium text-foreground">{p.paymentReviewedBy.name}</span>
                           </p>
                         )}
+                        {p.paymentStatus === PaymentStatus.REJECTED && p.paymentRejectionReason && (
+                          <p className="text-xs text-destructive">Motivo: {p.paymentRejectionReason}</p>
+                        )}
                         {p.paidInHand !== null && (
                           <p className="text-xs text-muted-foreground">{p.paidInHand ? "Pago em mão" : "Não foi em mão"}</p>
                         )}
@@ -509,7 +607,7 @@ export default function ParticipantsPage() {
                               variant="outline"
                               className="h-6 border-destructive/40 px-2 text-[11px] text-destructive hover:bg-destructive/10"
                               disabled={reviewingId === p.id}
-                              onClick={() => reviewPayment(p.id, "REJECTED")}
+                              onClick={() => openRejectDialog(p)}
                             >
                               Rejeitar
                             </Button>
@@ -605,6 +703,47 @@ export default function ParticipantsPage() {
           </Button>
         </div>
       </div>
+
+      <Dialog
+        open={!!rejectingParticipant}
+        onOpenChange={(open) => {
+          if (!open) setRejectingParticipant(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeitar pagamento</DialogTitle>
+            <DialogDescription>
+              {rejectingParticipant && `Indique o motivo da rejeição para ${rejectingParticipant.fullName}.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Textarea
+              value={rejectionReason}
+              onChange={(e) => {
+                setRejectionReason(e.target.value);
+                if (e.target.value.trim()) setRejectionReasonError(null);
+              }}
+              placeholder="Ex.: Valor não corresponde, comprovativo ilegível..."
+              rows={3}
+            />
+            {rejectionReasonError && <p className="text-sm text-destructive">{rejectionReasonError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectingParticipant(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={reviewingId === rejectingParticipant?.id}
+              onClick={confirmReject}
+            >
+              {reviewingId === rejectingParticipant?.id && <Spinner />}
+              Rejeitar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

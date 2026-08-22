@@ -15,6 +15,7 @@ interface PaymentRejectedEmailInput {
   to: string;
   fullName: string;
   registrationNumber: string;
+  reason?: string;
 }
 
 interface BrevoEmailPayload {
@@ -132,10 +133,12 @@ export class MailService {
         textContent:
           `Olá, ${firstName}.\n\n` +
           `Não foi possível validar o comprovativo de pagamento associado à inscrição ${input.registrationNumber}.\n\n` +
-          `Isto pode acontecer por o valor, a referência ou a imagem não corresponderem ao esperado. ` +
+          (input.reason
+            ? `Motivo: ${input.reason}\n\n`
+            : `Isto pode acontecer por o valor, a referência ou a imagem não corresponderem ao esperado.\n\n`) +
           `Contacte-nos para regularizar a situação.\n\n` +
           `Equipa DUNAMIS`,
-        htmlContent: paymentRejectedHtml(firstName, input.registrationNumber),
+        htmlContent: paymentRejectedHtml(firstName, input.registrationNumber, input.reason),
       },
       `email de rejeição para ${input.to} (${input.registrationNumber})`,
     );
@@ -195,17 +198,26 @@ function paymentConfirmedHtml(
   `);
 }
 
-function paymentRejectedHtml(firstName: string, registrationNumber: string): string {
+function paymentRejectedHtml(
+  firstName: string,
+  registrationNumber: string,
+  reason?: string,
+): string {
   return emailShell(`
     <p style="margin:0 0 16px;">Olá, <strong>${firstName}</strong>.</p>
     <p style="margin:0 0 16px;">
       Não foi possível validar o comprovativo de pagamento associado à inscrição
       <strong style="font-family:monospace;">${registrationNumber}</strong>.
     </p>
-    <p style="margin:0 0 16px;">
+    ${
+      reason
+        ? `<p style="margin:0 0 16px;"><strong>Motivo:</strong> ${reason}</p>`
+        : `<p style="margin:0 0 16px;">
       Isto pode acontecer quando o valor, a referência ou a imagem do comprovativo não correspondem ao
-      esperado. Contacte-nos para regularizar a situação e concluir a sua inscrição.
-    </p>
+      esperado.
+    </p>`
+    }
+    <p style="margin:0 0 16px;">Contacte-nos para regularizar a situação e concluir a sua inscrição.</p>
     <p style="margin:24px 0 0;color:#5a5a5a;">Equipa DUNAMIS</p>
   `);
 }

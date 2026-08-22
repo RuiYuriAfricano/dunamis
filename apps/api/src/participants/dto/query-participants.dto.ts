@@ -1,4 +1,4 @@
-import { Gender, PaymentStatus } from '@prisma/client';
+import { Gender, MaritalStatus, PaymentStatus } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
@@ -66,6 +66,25 @@ export class QueryParticipantsDto {
   @Transform(toBoolean)
   @IsBoolean()
   mattressRequired?: boolean;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  wantsToBuyTent?: boolean;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  wantsToBuyMattress?: boolean;
+
+  @IsOptional()
+  @IsEnum(MaritalStatus)
+  maritalStatus?: MaritalStatus;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  bringingChildren?: boolean;
 
   @IsOptional()
   @Transform(toBoolean)

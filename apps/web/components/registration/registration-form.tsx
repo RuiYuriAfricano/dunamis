@@ -25,7 +25,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Stepper } from "@/components/registration/stepper";
 import { FileUpload } from "@/components/registration/file-upload";
 import { apiFetch, ApiError } from "@/lib/api";
-import { EVENT_PHONE, MATTRESS_PRICE_KZ, PAYMENT_AMOUNT_MEMBER, PAYMENT_AMOUNT_VISITOR } from "@/lib/event";
+import { EVENT_PHONE, PAYMENT_AMOUNT_MEMBER, PAYMENT_AMOUNT_VISITOR } from "@/lib/event";
 import { formatAngolaPhone, stripPhoneMask } from "@/lib/masks";
 import type { ParticipantConfirmation, TentTypeSummary, TransportStopSummary } from "@dunamis/types";
 
@@ -185,10 +185,7 @@ export function RegistrationForm({
   const tentRequired = watch("tentRequired");
   const mattressRequired = watch("mattressRequired");
   const wantsToBuyTent = watch("wantsToBuyTent");
-  const tentPurchaseTypeId = watch("tentPurchaseTypeId");
-  const tentPurchaseQuantity = watch("tentPurchaseQuantity");
   const wantsToBuyMattress = watch("wantsToBuyMattress");
-  const mattressPurchaseQuantity = watch("mattressPurchaseQuantity");
 
   useEffect(() => {
     if (isMemberTibl === "true") {
@@ -198,17 +195,7 @@ export function RegistrationForm({
     }
   }, [isMemberTibl, setValue]);
 
-  const selectedTentType = tentTypes.find((t) => t.id === tentPurchaseTypeId);
-  const tentPurchaseCost =
-    wantsToBuyTent === "true" && selectedTentType
-      ? selectedTentType.price * (parseInt(tentPurchaseQuantity || "0", 10) || 0)
-      : 0;
-  const mattressPurchaseCost =
-    wantsToBuyMattress === "true"
-      ? MATTRESS_PRICE_KZ * (parseInt(mattressPurchaseQuantity || "0", 10) || 0)
-      : 0;
-  const baseAmount = isMemberTibl === "true" ? PAYMENT_AMOUNT_MEMBER : PAYMENT_AMOUNT_VISITOR;
-  const totalAmount = baseAmount + tentPurchaseCost + mattressPurchaseCost;
+  const totalAmount = isMemberTibl === "true" ? PAYMENT_AMOUNT_MEMBER : PAYMENT_AMOUNT_VISITOR;
 
   async function goNext() {
     let valid = await trigger(STEPS[step].fields);
@@ -785,14 +772,14 @@ export function RegistrationForm({
                                     <SelectValue placeholder="Selecione o tipo de tenda">
                                       {(value: string | null) => {
                                         const t = tentTypes.find((tt) => tt.id === value);
-                                        return t ? `${t.name} — ${t.price.toLocaleString("pt-PT")} Kz` : "Selecione o tipo de tenda";
+                                        return t ? t.name : "Selecione o tipo de tenda";
                                       }}
                                     </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
                                     {tentTypes.map((t) => (
                                       <SelectItem key={t.id} value={t.id}>
-                                        {t.name} — {t.price.toLocaleString("pt-PT")} Kz
+                                        {t.name}
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
@@ -879,9 +866,7 @@ export function RegistrationForm({
 
                   {wantsToBuyMattress === "true" && (
                     <div className="animate-in fade-in slide-in-from-top-1 space-y-2 duration-300">
-                      <Label htmlFor="mattressPurchaseQuantity">
-                        Quantos? ({MATTRESS_PRICE_KZ.toLocaleString("pt-PT")} Kz cada)
-                      </Label>
+                      <Label htmlFor="mattressPurchaseQuantity">Quantos?</Label>
                       <Input
                         id="mattressPurchaseQuantity"
                         type="number"
@@ -937,8 +922,6 @@ export function RegistrationForm({
                       {isMemberTibl === "true"
                         ? "Valor para membros da Terceira Igreja Baptista de Luanda."
                         : "Valor para visitantes de outras igrejas."}
-                      {tentPurchaseCost > 0 && ` Inclui ${tentPurchaseCost.toLocaleString("pt-PT")} Kz de tenda(s).`}
-                      {mattressPurchaseCost > 0 && ` Inclui ${mattressPurchaseCost.toLocaleString("pt-PT")} Kz de colchão(ões).`}
                     </p>
                   </div>
 

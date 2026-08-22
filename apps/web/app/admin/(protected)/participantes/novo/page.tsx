@@ -25,7 +25,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { FileUpload } from "@/components/registration/file-upload";
 import { useSession } from "@/lib/use-session";
 import { apiFetch, ApiError } from "@/lib/api";
-import { MATTRESS_PRICE_KZ } from "@/lib/event";
 import { formatAngolaPhone, stripPhoneMask } from "@/lib/masks";
 import type { ParticipantSummary, TentTypeSummary, TransportStopSummary } from "@dunamis/types";
 
@@ -561,13 +560,13 @@ export default function ManualRegistrationPage() {
                               <SelectValue placeholder="Tipo de tenda">
                                 {(value: string | null) => {
                                   const t = tentTypes.find((tt) => tt.id === value);
-                                  return t ? `${t.name} — ${t.price.toLocaleString("pt-PT")} Kz` : "Tipo de tenda";
+                                  return t ? t.name : "Tipo de tenda";
                                 }}
                               </SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {tentTypes.map((t) => (
-                                <SelectItem key={t.id} value={t.id}>{t.name} — {t.price.toLocaleString("pt-PT")} Kz</SelectItem>
+                                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -614,9 +613,7 @@ export default function ManualRegistrationPage() {
                 </div>
                 {wantsToBuyMattress === "true" && (
                   <div className="space-y-2">
-                    <Label htmlFor="mattressPurchaseQuantity">
-                      Quantos? ({MATTRESS_PRICE_KZ.toLocaleString("pt-PT")} Kz cada)
-                    </Label>
+                    <Label htmlFor="mattressPurchaseQuantity">Quantos?</Label>
                     <Input id="mattressPurchaseQuantity" type="number" min={1} {...register("mattressPurchaseQuantity")} />
                   </div>
                 )}

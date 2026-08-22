@@ -21,9 +21,6 @@ import { generateRegistrationPdf } from './registration-pdf';
 
 const PAYMENT_AMOUNT_MEMBER = 5000;
 const PAYMENT_AMOUNT_VISITOR = 2500;
-// Placeholder price, same as the seeded tent types — adjust once a real
-// figure is set (no per-type catalog was requested for mattresses).
-const MATTRESS_PRICE_KZ = 2000;
 
 const PAYMENT_STATUS_LABELS: Record<
   'PENDING' | 'CONFIRMED' | 'REJECTED',
@@ -61,7 +58,7 @@ const PARTICIPANT_SUMMARY_SELECT = {
   tentsCanProvide: true,
   mattressesCanProvide: true,
   wantsToBuyTent: true,
-  tentPurchaseType: { select: { id: true, name: true, price: true } },
+  tentPurchaseType: { select: { id: true, name: true } },
   tentPurchaseQuantity: true,
   wantsToBuyMattress: true,
   mattressPurchaseQuantity: true,
@@ -72,6 +69,7 @@ const PARTICIPANT_SUMMARY_SELECT = {
   paymentStatus: true,
   paymentReviewedAt: true,
   paymentReviewedBy: { select: { name: true } },
+  paymentRejectionReason: true,
   checkedIn: true,
   checkedInAt: true,
   belongings: true,
@@ -103,9 +101,7 @@ export class ParticipantsService {
     }
 
     this.assertBirthDateValid(dto.birthDate);
-
-    const tentPurchaseAmount = await this.computeTentPurchaseAmount(dto);
-    const mattressPurchaseAmount = this.computeMattressPurchaseAmount(dto);
+    await this.assertTentPurchaseTypeValid(dto);
 
     // Checked before the (slower, network-bound) proof upload so a duplicate
     // registration fails fast without wasting a Supabase Storage write.
@@ -123,8 +119,6 @@ export class ParticipantsService {
 
     const participant = await this.insertParticipant(dto, {
       paymentProofPath,
-      tentPurchaseAmount,
-      mattressPurchaseAmount,
     });
 
     const qrCodeDataUrl = await QRCode.toDataURL(participant.qrToken, {
@@ -149,8 +143,7 @@ export class ParticipantsService {
   ) {
     await this.assertTransportStopValid(dto);
     this.assertBirthDateValid(dto.birthDate);
-    const tentPurchaseAmount = await this.computeTentPurchaseAmount(dto);
-    const mattressPurchaseAmount = this.computeMattressPurchaseAmount(dto);
+    await this.assertTentPurchaseTypeValid(dto);
 
     // Not sponsored: the admin is vouching for a real payment they've already
     // seen, so they record exactly what came in instead of the app assuming
@@ -173,8 +166,6 @@ export class ParticipantsService {
 
     const participant = await this.insertParticipant(dto, {
       paymentProofPath,
-      tentPurchaseAmount,
-      mattressPurchaseAmount,
       paymentAmountOverride: dto.isSponsored ? undefined : dto.paymentAmountPaid,
       paidInHand: dto.isSponsored ? null : (dto.paidInHand ?? null),
       registeredByAdminId: adminId,
@@ -192,8 +183,6 @@ export class ParticipantsService {
     dto: CreateParticipantDto,
     extra: {
       paymentProofPath: string | null;
-      tentPurchaseAmount: number;
-      mattressPurchaseAmount: number;
       paymentAmountOverride?: number;
       paidInHand?: boolean | null;
       registeredByAdminId?: string;
@@ -215,8 +204,7 @@ export class ParticipantsService {
           : PAYMENT_AMOUNT_VISITOR;
         const paymentAmount = dto.isSponsored
           ? 0
-          : (extra.paymentAmountOverride ??
-            baseAmount + extra.tentPurchaseAmount + extra.mattressPurchaseAmount);
+          : (extra.paymentAmountOverride ?? baseAmount);
 
         const wantsToBuyTent = dto.tentRequired && !!dto.wantsToBuyTent;
         const wantsToBuyMattress = dto.mattressRequired && !!dto.wantsToBuyMattress;
@@ -340,11 +328,11 @@ export class ParticipantsService {
     }
   }
 
-  private async computeTentPurchaseAmount(
+  private async assertTentPurchaseTypeValid(
     dto: CreateParticipantDto,
-  ): Promise<number> {
+  ): Promise<void> {
     if (!dto.tentRequired || !dto.wantsToBuyTent || !dto.tentPurchaseTypeId) {
-      return 0;
+      return;
     }
 
     const tentType = await this.prisma.tentType.findUnique({
@@ -353,13 +341,6 @@ export class ParticipantsService {
     if (!tentType || !tentType.active) {
       throw new BadRequestException('Tipo de tenda inválido.');
     }
-
-    return tentType.price * (dto.tentPurchaseQuantity ?? 0);
-  }
-
-  private computeMattressPurchaseAmount(dto: CreateParticipantDto): number {
-    if (!dto.mattressRequired || !dto.wantsToBuyMattress) return 0;
-    return MATTRESS_PRICE_KZ * (dto.mattressPurchaseQuantity ?? 0);
   }
 
   private async assertContactIsUnique(
@@ -446,11 +427,13 @@ export class ParticipantsService {
         paymentStatus: dto.status,
         paymentReviewedById: reviewerId,
         paymentReviewedAt: new Date(),
+        paymentRejectionReason:
+          dto.status === PaymentStatus.REJECTED ? dto.reason : null,
       },
       select: PARTICIPANT_SUMMARY_SELECT,
     });
 
-    this.dispatchPaymentStatusEmail(participant, dto.status);
+    this.dispatchPaymentStatusEmail(participant, dto.status, dto.reason);
 
     return updated;
   }
@@ -461,6 +444,7 @@ export class ParticipantsService {
   private dispatchPaymentStatusEmail(
     participant: ParticipantWithTransportStop,
     status: PaymentStatus,
+    reason?: string,
   ) {
     if (status === PaymentStatus.CONFIRMED) {
       this.sendConfirmationEmail(participant).catch((error) =>
@@ -472,6 +456,7 @@ export class ParticipantsService {
           to: participant.email,
           fullName: participant.fullName,
           registrationNumber: participant.registrationNumber,
+          reason,
         })
         .catch((error) =>
           this.logger.error(`Falha ao enviar email de rejeição: ${error.message}`),
@@ -587,6 +572,7 @@ export class ParticipantsService {
       { header: 'Valor (Kz)', key: 'paymentAmount', width: 12 },
       { header: 'Comprovativo', key: 'paymentProofPath', width: 30 },
       { header: 'Estado do Pagamento', key: 'paymentStatus', width: 18 },
+      { header: 'Motivo da Rejeição', key: 'paymentRejectionReason', width: 30 },
       { header: 'Check-in', key: 'checkedIn', width: 12 },
       { header: 'Registado por Admin', key: 'registeredByAdmin', width: 20 },
     ];
@@ -635,6 +621,7 @@ export class ParticipantsService {
         paymentAmount: p.paymentAmount,
         paymentProofPath: p.paymentProofPath ?? '-',
         paymentStatus: PAYMENT_STATUS_LABELS[p.paymentStatus],
+        paymentRejectionReason: p.paymentRejectionReason || '-',
         checkedIn: p.checkedIn ? 'Sim' : 'Não',
         registeredByAdmin: p.registeredByAdmin?.name ?? '-',
       });
@@ -676,6 +663,13 @@ export class ParticipantsService {
       where.tentRequired = query.tentRequired;
     if (query.mattressRequired !== undefined)
       where.mattressRequired = query.mattressRequired;
+    if (query.wantsToBuyTent !== undefined)
+      where.wantsToBuyTent = query.wantsToBuyTent;
+    if (query.wantsToBuyMattress !== undefined)
+      where.wantsToBuyMattress = query.wantsToBuyMattress;
+    if (query.maritalStatus) where.maritalStatus = query.maritalStatus;
+    if (query.bringingChildren !== undefined)
+      where.bringingChildren = query.bringingChildren;
     if (query.checkedIn !== undefined) where.checkedIn = query.checkedIn;
     if (query.paymentStatus) where.paymentStatus = query.paymentStatus;
 
