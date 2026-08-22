@@ -40,6 +40,8 @@ export class StatsService {
       birthDates,
       registrationDates,
       revenue,
+      tentsPurchased,
+      mattressesPurchased,
       myValidations,
       myRejections,
     ] = await Promise.all([
@@ -64,6 +66,14 @@ export class StatsService {
       this.prisma.participant.aggregate({
         where: { paymentStatus: 'CONFIRMED' },
         _sum: { paymentAmount: true },
+      }),
+      this.prisma.participant.aggregate({
+        where: { wantsToBuyTent: true },
+        _sum: { tentPurchaseQuantity: true },
+      }),
+      this.prisma.participant.aggregate({
+        where: { wantsToBuyMattress: true },
+        _sum: { mattressPurchaseQuantity: true },
       }),
       this.prisma.participant.count({
         where: { paymentReviewedById: userId, paymentStatus: 'CONFIRMED' },
@@ -105,6 +115,8 @@ export class StatsService {
       totalMattressRequired,
       totalCheckedIn,
       totalRevenueKz: revenue._sum.paymentAmount ?? 0,
+      totalTentsPurchased: tentsPurchased._sum.tentPurchaseQuantity ?? 0,
+      totalMattressesPurchased: mattressesPurchased._sum.mattressPurchaseQuantity ?? 0,
       myValidations,
       myRejections,
       byTransportStop: stops.map((stop) => ({

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Banknote, CheckCircle2, XCircle } from "lucide-react";
+import { Banknote, BedSingle, CheckCircle2, Tent, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageLoading } from "@/components/ui/page-loading";
 import { useSession } from "@/lib/use-session";
@@ -83,7 +83,7 @@ export default function DashboardPage() {
         })}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="animate-in fade-in slide-in-from-bottom-2 gap-1 border-none bg-primary/10 fill-mode-both py-3 duration-500">
           <CardHeader className="px-4">
             <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -111,6 +111,30 @@ export default function DashboardPage() {
               <XCircle className="size-5" aria-hidden />
               {stats.myRejections}
             </span>
+          </CardContent>
+        </Card>
+
+        <Card className="animate-in fade-in slide-in-from-bottom-2 gap-1 border-none bg-chart-3/10 fill-mode-both py-3 duration-500">
+          <CardHeader className="px-4">
+            <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Tent className="size-3.5" aria-hidden />
+              Tendas a comprar
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 text-2xl font-bold text-chart-3">
+            {stats.totalTentsPurchased}
+          </CardContent>
+        </Card>
+
+        <Card className="animate-in fade-in slide-in-from-bottom-2 gap-1 border-none bg-cross/10 fill-mode-both py-3 duration-500">
+          <CardHeader className="px-4">
+            <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <BedSingle className="size-3.5" aria-hidden />
+              Colchões a comprar
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 text-2xl font-bold text-cross">
+            {stats.totalMattressesPurchased}
           </CardContent>
         </Card>
       </div>

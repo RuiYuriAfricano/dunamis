@@ -13,11 +13,11 @@ import {
   ValidateIf,
 } from 'class-validator';
 
-function toBoolean({ value }: { value: unknown }): boolean {
+export function toBoolean({ value }: { value: unknown }): boolean {
   return value === true || value === 'true';
 }
 
-function toInt({ value }: { value: unknown }): number | undefined {
+export function toInt({ value }: { value: unknown }): number | undefined {
   if (value === undefined || value === '') return undefined;
   const n = typeof value === 'string' ? parseInt(value, 10) : (value as number);
   return Number.isNaN(n) ? undefined : n;
@@ -143,6 +143,17 @@ export class CreateParticipantDto {
   @IsInt()
   @Min(1)
   tentPurchaseQuantity?: number;
+
+  @ValidateIf((dto: CreateParticipantDto) => dto.mattressRequired)
+  @Transform(toBoolean)
+  @IsBoolean()
+  wantsToBuyMattress?: boolean;
+
+  @ValidateIf((dto: CreateParticipantDto) => !!dto.wantsToBuyMattress)
+  @Transform(toInt)
+  @IsInt()
+  @Min(1)
+  mattressPurchaseQuantity?: number;
 
   @Transform(toBoolean)
   @IsBoolean()

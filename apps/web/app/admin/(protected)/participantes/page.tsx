@@ -432,8 +432,26 @@ export default function ParticipantsPage() {
                     <TableCell className="text-sm">{p.email}</TableCell>
                     <TableCell className="text-sm">{p.allergicTo || "-"}</TableCell>
                     <TableCell className="text-sm">{p.transportStop?.name ?? "-"}</TableCell>
-                    <TableCell className="text-sm">{p.tentRequired ? "Sim" : "Não"}</TableCell>
-                    <TableCell className="text-sm">{p.mattressRequired ? "Sim" : "Não"}</TableCell>
+                    <TableCell className="text-sm">
+                      <p>{p.tentRequired ? "Sim" : "Não"}</p>
+                      {!p.tentRequired && p.tentsCanProvide > 0 && (
+                        <p className="text-xs text-muted-foreground">Disponibiliza {p.tentsCanProvide}</p>
+                      )}
+                      {p.wantsToBuyTent && (
+                        <p className="text-xs text-muted-foreground">
+                          Compra {p.tentPurchaseQuantity}x {p.tentPurchaseType?.name ?? "tenda"}
+                        </p>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <p>{p.mattressRequired ? "Sim" : "Não"}</p>
+                      {!p.mattressRequired && p.mattressesCanProvide > 0 && (
+                        <p className="text-xs text-muted-foreground">Disponibiliza {p.mattressesCanProvide}</p>
+                      )}
+                      {p.wantsToBuyMattress && (
+                        <p className="text-xs text-muted-foreground">Compra {p.mattressPurchaseQuantity}x colchão</p>
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm">
                       <Badge variant={p.isSponsored ? "default" : "secondary"}>{p.isSponsored ? "Sim" : "Não"}</Badge>
                     </TableCell>
@@ -456,6 +474,9 @@ export default function ParticipantsPage() {
                             {p.paymentStatus === PaymentStatus.REJECTED ? "Rejeitado" : "Validado"} por{" "}
                             <span className="font-medium text-foreground">{p.paymentReviewedBy.name}</span>
                           </p>
+                        )}
+                        {p.paidInHand !== null && (
+                          <p className="text-xs text-muted-foreground">{p.paidInHand ? "Pago em mão" : "Não foi em mão"}</p>
                         )}
                         {p.paymentProofPath ? (
                           <a

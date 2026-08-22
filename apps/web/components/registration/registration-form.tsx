@@ -25,7 +25,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Stepper } from "@/components/registration/stepper";
 import { FileUpload } from "@/components/registration/file-upload";
 import { apiFetch, ApiError } from "@/lib/api";
-import { EVENT_PHONE, PAYMENT_AMOUNT_MEMBER, PAYMENT_AMOUNT_VISITOR } from "@/lib/event";
+import { EVENT_PHONE, MATTRESS_PRICE_KZ, PAYMENT_AMOUNT_MEMBER, PAYMENT_AMOUNT_VISITOR } from "@/lib/event";
 import { formatAngolaPhone, stripPhoneMask } from "@/lib/masks";
 import type { ParticipantConfirmation, TentTypeSummary, TransportStopSummary } from "@dunamis/types";
 
@@ -73,6 +73,8 @@ const schema = z
     wantsToBuyTent: z.enum(["true", "false"]).optional(),
     tentPurchaseTypeId: z.string().optional(),
     tentPurchaseQuantity: z.string().optional(),
+    wantsToBuyMattress: z.enum(["true", "false"]).optional(),
+    mattressPurchaseQuantity: z.string().optional(),
     isSponsored: z.enum(["true", "false"], { message: "Selecione uma opção." }),
   })
   .refine((data) => data.transportRequired === "false" || !!data.transportStopId, {
@@ -114,6 +116,8 @@ const STEPS: { label: string; fields: Path<FormValues>[] }[] = [
       "wantsToBuyTent",
       "tentPurchaseTypeId",
       "tentPurchaseQuantity",
+      "wantsToBuyMattress",
+      "mattressPurchaseQuantity",
     ],
   },
   { label: "Pagamento", fields: ["isSponsored"] },
@@ -166,6 +170,8 @@ export function RegistrationForm({
       wantsToBuyTent: "false",
       tentPurchaseTypeId: "",
       tentPurchaseQuantity: "1",
+      wantsToBuyMattress: "false",
+      mattressPurchaseQuantity: "1",
       transportRequired: "false",
       isSponsored: "false",
     },
@@ -181,6 +187,8 @@ export function RegistrationForm({
   const wantsToBuyTent = watch("wantsToBuyTent");
   const tentPurchaseTypeId = watch("tentPurchaseTypeId");
   const tentPurchaseQuantity = watch("tentPurchaseQuantity");
+  const wantsToBuyMattress = watch("wantsToBuyMattress");
+  const mattressPurchaseQuantity = watch("mattressPurchaseQuantity");
 
   useEffect(() => {
     if (isMemberTibl === "true") {
@@ -195,8 +203,12 @@ export function RegistrationForm({
     wantsToBuyTent === "true" && selectedTentType
       ? selectedTentType.price * (parseInt(tentPurchaseQuantity || "0", 10) || 0)
       : 0;
+  const mattressPurchaseCost =
+    wantsToBuyMattress === "true"
+      ? MATTRESS_PRICE_KZ * (parseInt(mattressPurchaseQuantity || "0", 10) || 0)
+      : 0;
   const baseAmount = isMemberTibl === "true" ? PAYMENT_AMOUNT_MEMBER : PAYMENT_AMOUNT_VISITOR;
-  const totalAmount = baseAmount + tentPurchaseCost;
+  const totalAmount = baseAmount + tentPurchaseCost + mattressPurchaseCost;
 
   async function goNext() {
     let valid = await trigger(STEPS[step].fields);
@@ -270,6 +282,18 @@ export function RegistrationForm({
           setError("mattressesCanProvide", { type: "manual", message: "Indique um número (0 se não puder)." });
           valid = false;
         }
+      } else {
+        const wants = getValues("wantsToBuyMattress");
+        if (!wants) {
+          setError("wantsToBuyMattress", { type: "manual", message: "Selecione uma opção." });
+          valid = false;
+        } else if (wants === "true") {
+          const qty = parseInt(getValues("mattressPurchaseQuantity") || "", 10);
+          if (!qty || qty < 1) {
+            setError("mattressPurchaseQuantity", { type: "manual", message: "Indique quantos colchões." });
+            valid = false;
+          }
+        }
       }
     }
 
@@ -324,6 +348,11 @@ export function RegistrationForm({
       if (buyingTent) {
         formData.set("tentPurchaseTypeId", values.tentPurchaseTypeId!);
         formData.set("tentPurchaseQuantity", values.tentPurchaseQuantity ?? "1");
+      }
+      const buyingMattress = values.mattressRequired && values.wantsToBuyMattress === "true";
+      formData.set("wantsToBuyMattress", String(buyingMattress));
+      if (buyingMattress) {
+        formData.set("mattressPurchaseQuantity", values.mattressPurchaseQuantity ?? "1");
       }
       formData.set("isSponsored", String(sponsored));
       if (!sponsored && paymentProof) {
@@ -824,6 +853,49 @@ export function RegistrationForm({
                   )}
                 </div>
               )}
+
+              {mattressRequired && (
+                <div className="animate-in fade-in slide-in-from-top-1 space-y-4 pl-6 duration-300">
+                  <div className="space-y-2">
+                    <Label>Pode comprar um colchão?</Label>
+                    <Controller
+                      control={control}
+                      name="wantsToBuyMattress"
+                      render={({ field }) => (
+                        <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                          <label className="flex items-center gap-2 text-sm">
+                            <RadioGroupItem value="true" /> Sim
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <RadioGroupItem value="false" /> Não
+                          </label>
+                        </RadioGroup>
+                      )}
+                    />
+                    {errors.wantsToBuyMattress && (
+                      <p className="text-sm text-destructive">{errors.wantsToBuyMattress.message}</p>
+                    )}
+                  </div>
+
+                  {wantsToBuyMattress === "true" && (
+                    <div className="animate-in fade-in slide-in-from-top-1 space-y-2 duration-300">
+                      <Label htmlFor="mattressPurchaseQuantity">
+                        Quantos? ({MATTRESS_PRICE_KZ.toLocaleString("pt-PT")} Kz cada)
+                      </Label>
+                      <Input
+                        id="mattressPurchaseQuantity"
+                        type="number"
+                        min={1}
+                        inputMode="numeric"
+                        {...register("mattressPurchaseQuantity")}
+                      />
+                      {errors.mattressPurchaseQuantity && (
+                        <p className="text-sm text-destructive">{errors.mattressPurchaseQuantity.message}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
           )}
 
@@ -866,6 +938,7 @@ export function RegistrationForm({
                         ? "Valor para membros da Terceira Igreja Baptista de Luanda."
                         : "Valor para visitantes de outras igrejas."}
                       {tentPurchaseCost > 0 && ` Inclui ${tentPurchaseCost.toLocaleString("pt-PT")} Kz de tenda(s).`}
+                      {mattressPurchaseCost > 0 && ` Inclui ${mattressPurchaseCost.toLocaleString("pt-PT")} Kz de colchão(ões).`}
                     </p>
                   </div>
 

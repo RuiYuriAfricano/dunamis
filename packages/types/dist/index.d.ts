@@ -57,7 +57,10 @@ export interface ParticipantSummary {
     wantsToBuyTent: boolean;
     tentPurchaseType: TentTypeSummary | null;
     tentPurchaseQuantity: number;
+    wantsToBuyMattress: boolean;
+    mattressPurchaseQuantity: number;
     isSponsored: boolean;
+    paidInHand: boolean | null;
     paymentAmount: number;
     paymentProofPath: string | null;
     paymentStatus: PaymentStatus;
@@ -110,6 +113,8 @@ export interface DashboardStats {
     totalMattressRequired: number;
     totalCheckedIn: number;
     totalRevenueKz: number;
+    totalTentsPurchased: number;
+    totalMattressesPurchased: number;
     myValidations: number;
     myRejections: number;
     byTransportStop: TransportStopStat[];

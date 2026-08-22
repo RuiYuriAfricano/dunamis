@@ -22,8 +22,10 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { FileUpload } from "@/components/registration/file-upload";
 import { useSession } from "@/lib/use-session";
 import { apiFetch, ApiError } from "@/lib/api";
+import { MATTRESS_PRICE_KZ } from "@/lib/event";
 import { formatAngolaPhone, stripPhoneMask } from "@/lib/masks";
 import type { ParticipantSummary, TentTypeSummary, TransportStopSummary } from "@dunamis/types";
 
@@ -57,8 +59,12 @@ const schema = z
     wantsToBuyTent: z.enum(["true", "false"]).optional(),
     tentPurchaseTypeId: z.string().optional(),
     tentPurchaseQuantity: z.string().optional(),
+    wantsToBuyMattress: z.enum(["true", "false"]).optional(),
+    mattressPurchaseQuantity: z.string().optional(),
     isSponsored: z.enum(["true", "false"]),
     paymentStatus: z.enum(["PENDING", "CONFIRMED", "REJECTED"]),
+    paidInHand: z.enum(["true", "false"]).optional(),
+    paymentAmountPaid: z.string().optional(),
   })
   .refine((data) => data.transportRequired === "false" || !!data.transportStopId, {
     message: "Selecione a paragem de transporte.",
@@ -77,6 +83,8 @@ export default function ManualRegistrationPage() {
   const [stops, setStops] = useState<TransportStopSummary[]>([]);
   const [tentTypes, setTentTypes] = useState<TentTypeSummary[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentProof, setPaymentProof] = useState<File | null>(null);
+  const [paymentProofError, setPaymentProofError] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<TransportStopSummary[]>("/transport-stops").then(setStops);
@@ -89,6 +97,7 @@ export default function ManualRegistrationPage() {
     control,
     watch,
     setValue,
+    setError,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -114,8 +123,12 @@ export default function ManualRegistrationPage() {
       wantsToBuyTent: "false",
       tentPurchaseTypeId: "",
       tentPurchaseQuantity: "1",
+      wantsToBuyMattress: "false",
+      mattressPurchaseQuantity: "1",
       isSponsored: "false",
       paymentStatus: "CONFIRMED",
+      paidInHand: "true",
+      paymentAmountPaid: "",
     },
   });
 
@@ -126,6 +139,10 @@ export default function ManualRegistrationPage() {
   const tentRequired = watch("tentRequired");
   const mattressRequired = watch("mattressRequired");
   const wantsToBuyTent = watch("wantsToBuyTent");
+  const wantsToBuyMattress = watch("wantsToBuyMattress");
+  const isSponsored = watch("isSponsored");
+  const sponsored = isSponsored === "true";
+  const paidInHand = watch("paidInHand");
 
   useEffect(() => {
     if (isMemberTibl === "true") setValue("church", TIBL_NAME);
@@ -134,54 +151,81 @@ export default function ManualRegistrationPage() {
 
   async function onSubmit(values: FormValues) {
     if (!session) return;
+
+    const sponsored = values.isSponsored === "true";
+    if (!sponsored) {
+      if (!values.paymentAmountPaid || parseInt(values.paymentAmountPaid, 10) < 0) {
+        setError("paymentAmountPaid", { type: "manual", message: "Indique quanto pagou." });
+        return;
+      }
+      if (!values.paidInHand) {
+        setError("paidInHand", { type: "manual", message: "Selecione uma opção." });
+        return;
+      }
+      if (values.paidInHand === "false" && !paymentProof) {
+        setPaymentProofError("Anexe o comprovativo de pagamento.");
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
-      const body: Record<string, string> = {
-        fullName: values.fullName,
-        gender: values.gender,
-        birthDate: values.birthDate,
-        phone: stripPhoneMask(values.phone),
-        whatsapp: stripPhoneMask(values.whatsapp),
-        email: values.email,
-        church: values.isMemberTibl === "true" ? TIBL_NAME : (values.church ?? ""),
-        isMemberTibl: String(values.isMemberTibl === "true"),
-        baptized: String(values.baptized === "true"),
-        allergicTo: values.allergicTo?.trim() ?? "",
-        firstTime: String(values.firstTime === "true"),
-        maritalStatus: values.maritalStatus,
-        bringingChildren: String(values.bringingChildren === "true"),
-        transportRequired: String(values.transportRequired === "true"),
-        tentRequired: String(values.tentRequired),
-        mattressRequired: String(values.mattressRequired),
-        isSponsored: String(values.isSponsored === "true"),
-        paymentStatus: values.paymentStatus,
-      };
-
-      if (values.bringingChildren === "true") body.numberOfChildren = values.numberOfChildren || "0";
-
+      const formData = new FormData();
+      formData.set("fullName", values.fullName);
+      formData.set("gender", values.gender);
+      formData.set("birthDate", values.birthDate);
+      formData.set("phone", stripPhoneMask(values.phone));
+      formData.set("whatsapp", stripPhoneMask(values.whatsapp));
+      formData.set("email", values.email);
+      formData.set("church", values.isMemberTibl === "true" ? TIBL_NAME : (values.church ?? ""));
+      formData.set("isMemberTibl", String(values.isMemberTibl === "true"));
+      formData.set("baptized", String(values.baptized === "true"));
+      formData.set("allergicTo", values.allergicTo?.trim() ?? "");
+      formData.set("firstTime", String(values.firstTime === "true"));
+      formData.set("maritalStatus", values.maritalStatus);
+      formData.set("bringingChildren", String(values.bringingChildren === "true"));
+      if (values.bringingChildren === "true") {
+        formData.set("numberOfChildren", values.numberOfChildren || "0");
+      }
+      formData.set("transportRequired", String(values.transportRequired === "true"));
       if (values.transportRequired === "true" && values.transportStopId) {
-        body.transportStopId = values.transportStopId;
+        formData.set("transportStopId", values.transportStopId);
       } else if (values.transportRequired === "false" && values.ownTransportType) {
-        body.ownTransportType = values.ownTransportType;
+        formData.set("ownTransportType", values.ownTransportType);
         if (values.ownTransportType === "INDIVIDUAL") {
-          body.carSeats = values.carSeats || "";
-          body.carRouteStops = values.carRouteStops || "";
+          formData.set("carSeats", values.carSeats || "");
+          formData.set("carRouteStops", values.carRouteStops || "");
         }
       }
-
-      if (!values.tentRequired) body.tentsCanProvide = values.tentsCanProvide || "0";
-      if (!values.mattressRequired) body.mattressesCanProvide = values.mattressesCanProvide || "0";
+      formData.set("tentRequired", String(values.tentRequired));
+      formData.set("mattressRequired", String(values.mattressRequired));
+      if (!values.tentRequired) formData.set("tentsCanProvide", values.tentsCanProvide || "0");
+      if (!values.mattressRequired) formData.set("mattressesCanProvide", values.mattressesCanProvide || "0");
       const buyingTent = values.tentRequired && values.wantsToBuyTent === "true" && !!values.tentPurchaseTypeId;
-      body.wantsToBuyTent = String(buyingTent);
+      formData.set("wantsToBuyTent", String(buyingTent));
       if (buyingTent) {
-        body.tentPurchaseTypeId = values.tentPurchaseTypeId!;
-        body.tentPurchaseQuantity = values.tentPurchaseQuantity || "1";
+        formData.set("tentPurchaseTypeId", values.tentPurchaseTypeId!);
+        formData.set("tentPurchaseQuantity", values.tentPurchaseQuantity || "1");
+      }
+      const buyingMattress = values.mattressRequired && values.wantsToBuyMattress === "true";
+      formData.set("wantsToBuyMattress", String(buyingMattress));
+      if (buyingMattress) {
+        formData.set("mattressPurchaseQuantity", values.mattressPurchaseQuantity || "1");
+      }
+      formData.set("isSponsored", String(sponsored));
+      formData.set("paymentStatus", values.paymentStatus);
+      if (!sponsored) {
+        formData.set("paymentAmountPaid", values.paymentAmountPaid!);
+        formData.set("paidInHand", values.paidInHand!);
+        if (values.paidInHand === "false" && paymentProof) {
+          formData.set("paymentProof", paymentProof);
+        }
       }
 
       const created = await apiFetch<ParticipantSummary>("/participants/manual", {
         method: "POST",
         token: session.accessToken,
-        body: JSON.stringify(body),
+        body: formData,
       });
 
       toast.success(`Inscrição de ${created.fullName} criada (${created.registrationNumber}).`);
@@ -210,8 +254,8 @@ export default function ManualRegistrationPage() {
           Registar inscrição manualmente
         </h1>
         <p className="text-sm text-muted-foreground">
-          Para participantes sem forma de se inscrever pelo site. O comprovativo de pagamento não é necessário — defina
-          diretamente o estado do pagamento abaixo.
+          Para participantes sem forma de se inscrever pelo site. Se não for patrocinado, indique quanto pagou — se não
+          foi em mão, é preciso anexar o comprovativo.
         </p>
       </div>
 
@@ -553,6 +597,31 @@ export default function ManualRegistrationPage() {
                 <Input id="mattressesCanProvide" type="number" min={0} {...register("mattressesCanProvide")} />
               </div>
             )}
+            {mattressRequired && (
+              <div className="space-y-4 pl-6">
+                <div className="space-y-2">
+                  <Label>Vai comprar colchão?</Label>
+                  <Controller
+                    control={control}
+                    name="wantsToBuyMattress"
+                    render={({ field }) => (
+                      <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                        <label className="flex items-center gap-2 text-sm"><RadioGroupItem value="true" /> Sim</label>
+                        <label className="flex items-center gap-2 text-sm"><RadioGroupItem value="false" /> Não</label>
+                      </RadioGroup>
+                    )}
+                  />
+                </div>
+                {wantsToBuyMattress === "true" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="mattressPurchaseQuantity">
+                      Quantos? ({MATTRESS_PRICE_KZ.toLocaleString("pt-PT")} Kz cada)
+                    </Label>
+                    <Input id="mattressPurchaseQuantity" type="number" min={1} {...register("mattressPurchaseQuantity")} />
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -574,6 +643,45 @@ export default function ManualRegistrationPage() {
                 )}
               />
             </div>
+            {!sponsored && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="paymentAmountPaid">Quanto pagou? (Kz)</Label>
+                  <Input id="paymentAmountPaid" type="number" min={0} {...register("paymentAmountPaid")} />
+                  {errors.paymentAmountPaid && (
+                    <p className="text-sm text-destructive">{errors.paymentAmountPaid.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Foi pago em mão?</Label>
+                  <Controller
+                    control={control}
+                    name="paidInHand"
+                    render={({ field }) => (
+                      <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                        <label className="flex items-center gap-2 text-sm"><RadioGroupItem value="true" /> Sim</label>
+                        <label className="flex items-center gap-2 text-sm"><RadioGroupItem value="false" /> Não</label>
+                      </RadioGroup>
+                    )}
+                  />
+                  {errors.paidInHand && <p className="text-sm text-destructive">{errors.paidInHand.message}</p>}
+                </div>
+                {paidInHand === "false" && (
+                  <div className="animate-in fade-in slide-in-from-top-1 space-y-2 duration-300">
+                    <Label>Comprovativo de pagamento</Label>
+                    <FileUpload
+                      value={paymentProof}
+                      onChange={(file) => {
+                        setPaymentProof(file);
+                        if (file) setPaymentProofError(null);
+                      }}
+                      accept="image/*,application/pdf"
+                      error={paymentProofError ?? undefined}
+                    />
+                  </div>
+                )}
+              </>
+            )}
             <div className="space-y-2">
               <Label>Estado do pagamento</Label>
               <Controller

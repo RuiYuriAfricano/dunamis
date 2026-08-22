@@ -21,6 +21,9 @@ import { generateRegistrationPdf } from './registration-pdf';
 
 const PAYMENT_AMOUNT_MEMBER = 5000;
 const PAYMENT_AMOUNT_VISITOR = 2500;
+// Placeholder price, same as the seeded tent types — adjust once a real
+// figure is set (no per-type catalog was requested for mattresses).
+const MATTRESS_PRICE_KZ = 2000;
 
 const PAYMENT_STATUS_LABELS: Record<
   'PENDING' | 'CONFIRMED' | 'REJECTED',
@@ -60,7 +63,10 @@ const PARTICIPANT_SUMMARY_SELECT = {
   wantsToBuyTent: true,
   tentPurchaseType: { select: { id: true, name: true, price: true } },
   tentPurchaseQuantity: true,
+  wantsToBuyMattress: true,
+  mattressPurchaseQuantity: true,
   isSponsored: true,
+  paidInHand: true,
   paymentAmount: true,
   paymentProofPath: true,
   paymentStatus: true,
@@ -99,6 +105,7 @@ export class ParticipantsService {
     this.assertBirthDateValid(dto.birthDate);
 
     const tentPurchaseAmount = await this.computeTentPurchaseAmount(dto);
+    const mattressPurchaseAmount = this.computeMattressPurchaseAmount(dto);
 
     // Checked before the (slower, network-bound) proof upload so a duplicate
     // registration fails fast without wasting a Supabase Storage write.
@@ -117,6 +124,7 @@ export class ParticipantsService {
     const participant = await this.insertParticipant(dto, {
       paymentProofPath,
       tentPurchaseAmount,
+      mattressPurchaseAmount,
     });
 
     const qrCodeDataUrl = await QRCode.toDataURL(participant.qrToken, {
@@ -134,17 +142,41 @@ export class ParticipantsService {
    * the public flow, can create the record already CONFIRMED so the QR/email
    * goes out immediately instead of waiting on a separate review step.
    */
-  async createManual(dto: CreateManualParticipantDto, adminId: string) {
+  async createManual(
+    dto: CreateManualParticipantDto,
+    adminId: string,
+    paymentProof: Express.Multer.File | undefined,
+  ) {
     await this.assertTransportStopValid(dto);
     this.assertBirthDateValid(dto.birthDate);
     const tentPurchaseAmount = await this.computeTentPurchaseAmount(dto);
+    const mattressPurchaseAmount = this.computeMattressPurchaseAmount(dto);
+
+    // Not sponsored: the admin is vouching for a real payment they've already
+    // seen, so they record exactly what came in instead of the app assuming
+    // the standard fee. If it wasn't handed over in person, a proof is still
+    // required — same as the public flow.
+    if (!dto.isSponsored && dto.paidInHand === false && !paymentProof) {
+      throw new BadRequestException(
+        'Comprovativo de pagamento é obrigatório quando o pagamento não foi feito em mão.',
+      );
+    }
+
     await this.assertContactIsUnique(dto.email, dto.phone, dto.whatsapp);
+
+    const paymentProofPath =
+      dto.isSponsored || dto.paidInHand !== false || !paymentProof
+        ? null
+        : await storePaymentProof(paymentProof);
 
     const status = dto.paymentStatus ?? PaymentStatus.CONFIRMED;
 
     const participant = await this.insertParticipant(dto, {
-      paymentProofPath: null,
+      paymentProofPath,
       tentPurchaseAmount,
+      mattressPurchaseAmount,
+      paymentAmountOverride: dto.isSponsored ? undefined : dto.paymentAmountPaid,
+      paidInHand: dto.isSponsored ? null : (dto.paidInHand ?? null),
       registeredByAdminId: adminId,
       paymentStatus: status,
       paymentReviewedById: status === PaymentStatus.PENDING ? null : adminId,
@@ -161,6 +193,9 @@ export class ParticipantsService {
     extra: {
       paymentProofPath: string | null;
       tentPurchaseAmount: number;
+      mattressPurchaseAmount: number;
+      paymentAmountOverride?: number;
+      paidInHand?: boolean | null;
       registeredByAdminId?: string;
       paymentStatus?: PaymentStatus;
       paymentReviewedById?: string | null;
@@ -180,9 +215,11 @@ export class ParticipantsService {
           : PAYMENT_AMOUNT_VISITOR;
         const paymentAmount = dto.isSponsored
           ? 0
-          : baseAmount + extra.tentPurchaseAmount;
+          : (extra.paymentAmountOverride ??
+            baseAmount + extra.tentPurchaseAmount + extra.mattressPurchaseAmount);
 
         const wantsToBuyTent = dto.tentRequired && !!dto.wantsToBuyTent;
+        const wantsToBuyMattress = dto.mattressRequired && !!dto.wantsToBuyMattress;
         const hasOwnTransport = !dto.transportRequired;
         const hasIndividualTransport =
           hasOwnTransport && dto.ownTransportType === 'INDIVIDUAL';
@@ -230,7 +267,12 @@ export class ParticipantsService {
             tentPurchaseQuantity: wantsToBuyTent
               ? (dto.tentPurchaseQuantity ?? 0)
               : 0,
+            wantsToBuyMattress,
+            mattressPurchaseQuantity: wantsToBuyMattress
+              ? (dto.mattressPurchaseQuantity ?? 0)
+              : 0,
             isSponsored: dto.isSponsored,
+            paidInHand: extra.paidInHand ?? null,
             paymentAmount,
             paymentProofPath: extra.paymentProofPath,
             paymentStatus: extra.paymentStatus,
@@ -313,6 +355,11 @@ export class ParticipantsService {
     }
 
     return tentType.price * (dto.tentPurchaseQuantity ?? 0);
+  }
+
+  private computeMattressPurchaseAmount(dto: CreateParticipantDto): number {
+    if (!dto.mattressRequired || !dto.wantsToBuyMattress) return 0;
+    return MATTRESS_PRICE_KZ * (dto.mattressPurchaseQuantity ?? 0);
   }
 
   private async assertContactIsUnique(
@@ -533,7 +580,10 @@ export class ParticipantsService {
       { header: 'Qtd. Tendas Compradas', key: 'tentPurchaseQuantity', width: 20 },
       { header: 'Precisa de Colchão', key: 'mattressRequired', width: 16 },
       { header: 'Pode Disponibilizar Colchões', key: 'mattressesCanProvide', width: 24 },
+      { header: 'Quer Comprar Colchão', key: 'wantsToBuyMattress', width: 20 },
+      { header: 'Qtd. Colchões Comprados', key: 'mattressPurchaseQuantity', width: 22 },
       { header: 'Patrocinado', key: 'isSponsored', width: 14 },
+      { header: 'Pago em Mão', key: 'paidInHand', width: 14 },
       { header: 'Valor (Kz)', key: 'paymentAmount', width: 12 },
       { header: 'Comprovativo', key: 'paymentProofPath', width: 30 },
       { header: 'Estado do Pagamento', key: 'paymentStatus', width: 18 },
@@ -578,7 +628,10 @@ export class ParticipantsService {
         tentPurchaseQuantity: p.tentPurchaseQuantity,
         mattressRequired: p.mattressRequired ? 'Sim' : 'Não',
         mattressesCanProvide: p.mattressesCanProvide,
+        wantsToBuyMattress: p.wantsToBuyMattress ? 'Sim' : 'Não',
+        mattressPurchaseQuantity: p.mattressPurchaseQuantity,
         isSponsored: p.isSponsored ? 'Sim' : 'Não',
+        paidInHand: p.paidInHand === null ? '-' : p.paidInHand ? 'Sim' : 'Não',
         paymentAmount: p.paymentAmount,
         paymentProofPath: p.paymentProofPath ?? '-',
         paymentStatus: PAYMENT_STATUS_LABELS[p.paymentStatus],

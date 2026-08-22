@@ -52,11 +52,13 @@ export class ParticipantsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Post('manual')
+  @UseInterceptors(FileInterceptor('paymentProof', paymentProofMulterOptions))
   createManual(
     @Body() dto: CreateManualParticipantDto,
     @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() paymentProof?: Express.Multer.File,
   ) {
-    return this.participantsService.createManual(dto, user.id);
+    return this.participantsService.createManual(dto, user.id, paymentProof);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
