@@ -22,6 +22,15 @@ const TRANSPORT_STOPS = [
   "Kilamba/11",
 ];
 
+// Preços de exemplo (hipotéticos) — ajuste em Prisma Studio ou aqui antes de
+// abrir a compra de tendas a sério.
+const TENT_TYPES = [
+  { name: "Tenda 1-2 pessoas", price: 5000 },
+  { name: "Tenda 3-4 pessoas", price: 8000 },
+  { name: "Tenda 5-6 pessoas", price: 12000 },
+  { name: "Tenda 8+ pessoas (família)", price: 18000 },
+];
+
 const TEAM_ADMINS = [
   { name: "Rui Malemba", email: "rui.malemba@dunamis.ao" },
   { name: "Mário Giovani", email: "mario.giovani@dunamis.ao" },
@@ -53,6 +62,14 @@ async function main() {
       where: { name },
       update: {},
       create: { name },
+    });
+  }
+
+  for (const tentType of TENT_TYPES) {
+    await prisma.tentType.upsert({
+      where: { name: tentType.name },
+      update: {},
+      create: tentType,
     });
   }
 
@@ -93,7 +110,7 @@ async function main() {
     });
   }
 
-  console.log("Seed concluído: paragens de transporte + utilizadores administradores.");
+  console.log("Seed concluído: paragens de transporte + tipos de tenda + utilizadores administradores.");
 }
 
 main()
