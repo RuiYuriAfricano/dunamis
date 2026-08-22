@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { clearSession } from "@/lib/auth";
+import { useSession } from "@/lib/use-session";
 
 const LINKS = [
   { href: "/admin/dashboard", label: "Dashboard" },
@@ -15,6 +16,7 @@ const LINKS = [
 export function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const session = useSession();
 
   function logout() {
     clearSession();
@@ -53,6 +55,9 @@ export function AdminNav() {
           <Link href="/" className="text-muted-foreground transition-colors hover:text-foreground">
             Ver site
           </Link>
+          {session && (
+            <span className="hidden text-muted-foreground sm:inline">{session.name}</span>
+          )}
           <Button size="sm" variant="outline" onClick={logout}>
             Sair
           </Button>
