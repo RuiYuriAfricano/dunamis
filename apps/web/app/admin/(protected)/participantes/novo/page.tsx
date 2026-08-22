@@ -51,7 +51,7 @@ const schema = z
     numberOfChildren: z.string().optional(),
     transportRequired: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     transportStopId: z.string().optional(),
-    ownTransportType: z.enum(["INDIVIDUAL", "TAXI"]).optional(),
+    ownTransportType: z.enum(["INDIVIDUAL", "TAXI", ""]).optional(),
     carSeats: z.string().optional(),
     carRouteStops: z.string().optional(),
     tentRequired: z.boolean(),
