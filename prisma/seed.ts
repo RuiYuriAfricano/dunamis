@@ -16,8 +16,7 @@ const prisma = new PrismaClient();
 const TRANSPORT_STOPS = [
   "Nova Vida",
   "Zango",
-  "Cidade",
-  "Terceira Igreja Baptista",
+  "Cidade/Terceira Igreja Baptista",
   "Dangerreux",
   "Kilamba/11",
 ];
@@ -48,12 +47,41 @@ const TRANSPORT_STOP_RENAMES: [string, string][] = [
   ["Dangerreu", "Dangerreux"],
 ];
 
+// Stops that turned out to be the same physical meeting point — merged into
+// one so participants aren't split across two rows for the same place
+// (the Terceira Igreja Baptista is itself in Cidade). Reassigns any
+// participant pointing at an old stop before deleting it, so nobody's pickup
+// point silently becomes blank.
+const TRANSPORT_STOP_MERGES: { into: string; from: string[] }[] = [
+  { into: "Cidade/Terceira Igreja Baptista", from: ["Cidade", "Terceira Igreja Baptista"] },
+];
+
 async function main() {
   for (const [oldName, newName] of TRANSPORT_STOP_RENAMES) {
     const oldStop = await prisma.transportStop.findUnique({ where: { name: oldName } });
     const newStop = await prisma.transportStop.findUnique({ where: { name: newName } });
     if (oldStop && !newStop) {
       await prisma.transportStop.update({ where: { id: oldStop.id }, data: { name: newName } });
+    }
+  }
+
+  for (const { into, from } of TRANSPORT_STOP_MERGES) {
+    const target = await prisma.transportStop.upsert({
+      where: { name: into },
+      update: {},
+      create: { name: into },
+    });
+
+    for (const oldName of from) {
+      if (oldName === into) continue;
+      const oldStop = await prisma.transportStop.findUnique({ where: { name: oldName } });
+      if (!oldStop) continue;
+
+      await prisma.participant.updateMany({
+        where: { transportStopId: oldStop.id },
+        data: { transportStopId: target.id },
+      });
+      await prisma.transportStop.delete({ where: { id: oldStop.id } });
     }
   }
 
