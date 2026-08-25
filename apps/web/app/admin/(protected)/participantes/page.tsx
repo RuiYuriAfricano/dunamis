@@ -312,17 +312,22 @@ export default function ParticipantsPage() {
 
   return (
     <div className="animate-in fade-in space-y-6 duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl tracking-wide text-dunamis-green">Inscritos</h1>
           <p className="text-sm text-muted-foreground">{data ? `${data.total} inscrito(s)` : "A carregar..."}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" nativeButton={false} render={<Link href="/admin/participantes/novo" />}>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            nativeButton={false}
+            render={<Link href="/admin/participantes/novo" />}
+          >
             <UserPlus className="size-4" />
             Registar manualmente
           </Button>
-          <Button onClick={handleExport} disabled={exporting}>
+          <Button className="w-full sm:w-auto" onClick={handleExport} disabled={exporting}>
             {exporting && <Spinner />}
             {exporting ? "A exportar..." : "Exportar Excel"}
           </Button>
