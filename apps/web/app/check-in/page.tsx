@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, AlertTriangle, XCircle, ScanLine, Backpack } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle, ScanLine, Backpack, LogIn, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { useSession } from "@/lib/use-session";
 import { apiFetch, ApiError } from "@/lib/api";
 import { clearSession } from "@/lib/auth";
 import type { Session } from "@/lib/auth";
-import type { CheckInLookupResult } from "@dunamis/types";
+import { MovementType, type CheckInLookupResult } from "@dunamis/types";
 
 type ViewState =
   | { status: "scanning" }
@@ -171,6 +171,12 @@ export default function CheckInPage() {
               <p>Data/Hora: {state.result.checkedInAt ? new Date(state.result.checkedInAt).toLocaleString("pt-PT") : "-"}</p>
               <p>Operador: {state.result.checkedInByName ?? "-"}</p>
             </CardContent>
+            <MovementTracker
+              qrToken={lastToken}
+              session={session}
+              result={state.result}
+              onUpdated={(result) => setState({ status: "already", result })}
+            />
             <BelongingsEditor
               qrToken={lastToken}
               session={session}
@@ -252,6 +258,76 @@ function StatusCard({
 function initials(name: string) {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? "") + (parts.at(-1)?.[0] ?? "")).toUpperCase();
+}
+
+function MovementTracker({
+  qrToken,
+  session,
+  result,
+  onUpdated,
+}: {
+  qrToken: string | null;
+  session: Session;
+  result: CheckInLookupResult;
+  onUpdated: (result: CheckInLookupResult) => void;
+}) {
+  const [recording, setRecording] = useState(false);
+
+  async function recordMovement(type: MovementType) {
+    if (!qrToken) return;
+    setRecording(true);
+    try {
+      const updated = await apiFetch<CheckInLookupResult>(`/check-in/${qrToken}/movement`, {
+        method: "POST",
+        token: session.accessToken,
+        body: JSON.stringify({ type }),
+      });
+      onUpdated(updated);
+      toast.success(type === MovementType.EXIT ? "Saída registada." : "Entrada registada.");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409 && err.payload) {
+        onUpdated(err.payload as CheckInLookupResult);
+        toast.error("O estado já tinha sido atualizado por outra pessoa — verifique antes de repetir.");
+      } else {
+        toast.error(err instanceof ApiError ? err.message : "Não foi possível registar o movimento.");
+      }
+    } finally {
+      setRecording(false);
+    }
+  }
+
+  return (
+    <CardContent className="space-y-2 pt-0 pb-2">
+      <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          {result.insideVenue ? (
+            <LogIn className="size-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
+          ) : (
+            <LogOut className="size-3.5 text-amber-600 dark:text-amber-400" aria-hidden />
+          )}
+          Atualmente:{" "}
+          <span className="font-medium text-foreground">{result.insideVenue ? "Dentro do local" : "Fora do local"}</span>
+        </span>
+        {result.lastMovementAt && (
+          <span>
+            Última {result.lastMovementType === "EXIT" ? "saída" : "entrada"}:{" "}
+            {new Date(result.lastMovementAt).toLocaleString("pt-PT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+          </span>
+        )}
+      </div>
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full"
+        disabled={recording}
+        onClick={() => recordMovement(result.insideVenue ? MovementType.EXIT : MovementType.ENTRY)}
+      >
+        {recording && <Spinner />}
+        {result.insideVenue ? <LogOut className="size-4" /> : <LogIn className="size-4" />}
+        {recording ? "A registar..." : result.insideVenue ? "Registar saída" : "Registar entrada"}
+      </Button>
+    </CardContent>
+  );
 }
 
 function BelongingsEditor({

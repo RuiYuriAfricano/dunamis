@@ -76,6 +76,7 @@ const PARTICIPANT_SUMMARY_SELECT = {
   checkedInAt: true,
   belongings: true,
   registeredByAdmin: { select: { name: true } },
+  insideVenue: true,
   createdAt: true,
 } satisfies Prisma.ParticipantSelect;
 
@@ -581,6 +582,7 @@ export class ParticipantsService {
       { header: 'Estado do Pagamento', key: 'paymentStatus', width: 18 },
       { header: 'Motivo da Rejeição', key: 'paymentRejectionReason', width: 30 },
       { header: 'Check-in', key: 'checkedIn', width: 12 },
+      { header: 'Está no Local', key: 'insideVenue', width: 14 },
       { header: 'Registado por Admin', key: 'registeredByAdmin', width: 20 },
     ];
     sheet.getRow(1).font = { bold: true };
@@ -631,6 +633,7 @@ export class ParticipantsService {
         paymentStatus: PAYMENT_STATUS_LABELS[p.paymentStatus],
         paymentRejectionReason: p.paymentRejectionReason || '-',
         checkedIn: p.checkedIn ? 'Sim' : 'Não',
+        insideVenue: p.checkedIn ? (p.insideVenue ? 'Sim' : 'Não') : '-',
         registeredByAdmin: p.registeredByAdmin?.name ?? '-',
       });
     }
@@ -680,6 +683,7 @@ export class ParticipantsService {
     if (query.bringingChildren !== undefined)
       where.bringingChildren = query.bringingChildren;
     if (query.checkedIn !== undefined) where.checkedIn = query.checkedIn;
+    if (query.insideVenue !== undefined) where.insideVenue = query.insideVenue;
     if (query.paymentStatus) where.paymentStatus = query.paymentStatus;
 
     return where;

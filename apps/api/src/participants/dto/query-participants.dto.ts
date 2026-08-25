@@ -96,6 +96,11 @@ export class QueryParticipantsDto {
   checkedIn?: boolean;
 
   @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  insideVenue?: boolean;
+
+  @IsOptional()
   @IsEnum(PaymentStatus)
   paymentStatus?: PaymentStatus;
 

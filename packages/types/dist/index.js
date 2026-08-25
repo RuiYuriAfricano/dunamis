@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OccupationStatus = exports.OwnTransportType = exports.MaritalStatus = exports.PaymentStatus = exports.Role = exports.Gender = void 0;
+exports.MovementType = exports.OccupationStatus = exports.OwnTransportType = exports.MaritalStatus = exports.PaymentStatus = exports.Role = exports.Gender = void 0;
 var Gender;
 (function (Gender) {
     Gender["MALE"] = "MALE";
@@ -32,3 +32,8 @@ var OccupationStatus;
     OccupationStatus["STUDENT"] = "STUDENT";
     OccupationStatus["WORKER"] = "WORKER";
 })(OccupationStatus || (exports.OccupationStatus = OccupationStatus = {}));
+var MovementType;
+(function (MovementType) {
+    MovementType["EXIT"] = "EXIT";
+    MovementType["ENTRY"] = "ENTRY";
+})(MovementType || (exports.MovementType = MovementType = {}));

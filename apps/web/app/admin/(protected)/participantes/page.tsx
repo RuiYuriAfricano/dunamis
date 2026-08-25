@@ -91,6 +91,7 @@ interface Filters {
   wantsToBuyMattress: string;
   isSponsored: string;
   checkedIn: string;
+  insideVenue: string;
   paymentStatus: string;
 }
 
@@ -111,6 +112,7 @@ const DEFAULT_FILTERS: Filters = {
   wantsToBuyMattress: "all",
   isSponsored: "all",
   checkedIn: "all",
+  insideVenue: "all",
   paymentStatus: "all",
 };
 
@@ -183,6 +185,7 @@ export default function ParticipantsPage() {
       "wantsToBuyMattress",
       "isSponsored",
       "checkedIn",
+      "insideVenue",
     ] as const) {
       if (filters[key] !== "all") params.set(key, filters[key]);
     }
@@ -432,6 +435,7 @@ export default function ParticipantsPage() {
             ["wantsToBuyMattress", "Compra colchão"],
             ["isSponsored", "Patrocinado"],
             ["checkedIn", "Check-in"],
+            ["insideVenue", "Está no local"],
           ] as const
         ).map(([key, label]) => (
           <Select key={key} value={filters[key]} onValueChange={(v) => updateFilter(key, v ?? "all")}>
@@ -478,6 +482,7 @@ export default function ParticipantsPage() {
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Patrocinado</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Pagamento</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Check-in</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Está no local</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Pertences</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Ações</TableHead>
             </TableRow>
@@ -485,7 +490,7 @@ export default function ParticipantsPage() {
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={23} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={24} className="py-10 text-center text-muted-foreground">
                   <div className="flex items-center justify-center gap-2">
                     <Spinner className="size-4" />A carregar inscritos...
                   </div>
@@ -495,7 +500,7 @@ export default function ParticipantsPage() {
 
             {!loading && data?.data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={23} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={24} className="py-8 text-center text-muted-foreground">
                   Nenhum inscrito encontrado.
                 </TableCell>
               </TableRow>
@@ -657,6 +662,15 @@ export default function ParticipantsPage() {
                       <Badge variant={p.checkedIn ? "default" : "secondary"}>
                         {p.checkedIn ? "Feito" : "Pendente"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {p.checkedIn ? (
+                        <Badge variant={p.insideVenue ? "default" : "secondary"}>
+                          {p.insideVenue ? "Dentro" : "Fora"}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="min-w-56 text-sm">
                       {editingBelongingsId === p.id ? (

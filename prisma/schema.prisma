@@ -38,6 +38,11 @@ enum OccupationStatus {
   WORKER
 }
 
+enum MovementType {
+  EXIT
+  ENTRY
+}
+
 model EventSettings {
   id                   Int      @id @default(1)
   registrationDeadline DateTime @map("registration_deadline")
@@ -124,6 +129,8 @@ model Participant {
   deletedByAdminId         String?           @map("deleted_by_admin_id")
   deletedByAdmin           User?             @relation("DeletedRegistration", fields: [deletedByAdminId], references: [id])
   checkIn                  CheckIn?
+  insideVenue              Boolean           @default(false) @map("inside_venue")
+  movementLogs             MovementLog[]
   createdAt                DateTime          @default(now()) @map("created_at")
   updatedAt                DateTime          @updatedAt @map("updated_at")
 
@@ -145,6 +152,7 @@ model User {
   paymentReviews        Participant[] @relation("PaymentReviewer")
   manualRegistrations   Participant[] @relation("ManualRegistration")
   deletedRegistrations  Participant[] @relation("DeletedRegistration")
+  movementLogs          MovementLog[]
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
 
@@ -160,4 +168,17 @@ model CheckIn {
   checkedInAt   DateTime    @default(now()) @map("checked_in_at")
 
   @@map("check_ins")
+}
+
+model MovementLog {
+  id            String       @id @default(cuid())
+  participantId String       @map("participant_id")
+  participant   Participant  @relation(fields: [participantId], references: [id])
+  type          MovementType
+  recordedAt    DateTime     @default(now()) @map("recorded_at")
+  recordedById  String       @map("recorded_by_id")
+  recordedBy    User         @relation(fields: [recordedById], references: [id])
+
+  @@index([participantId])
+  @@map("movement_logs")
 }

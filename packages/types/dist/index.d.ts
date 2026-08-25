@@ -23,6 +23,10 @@ export declare enum OccupationStatus {
     STUDENT = "STUDENT",
     WORKER = "WORKER"
 }
+export declare enum MovementType {
+    EXIT = "EXIT",
+    ENTRY = "ENTRY"
+}
 export interface TransportStopSummary {
     id: string;
     name: string;
@@ -79,6 +83,7 @@ export interface ParticipantSummary {
     registeredByAdmin: {
         name: string;
     } | null;
+    insideVenue: boolean;
     createdAt: string;
 }
 export interface ParticipantConfirmation {
@@ -156,4 +161,8 @@ export interface CheckInLookupResult {
     checkedInAt: string | null;
     checkedInByName: string | null;
     belongings: string | null;
+    insideVenue: boolean;
+    lastMovementType: MovementType | null;
+    lastMovementAt: string | null;
+    lastMovementByName: string | null;
 }
