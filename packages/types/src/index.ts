@@ -143,6 +143,16 @@ export interface DashboardStats {
 
 export interface EventSettingsSummary {
   registrationDeadline: string;
+  maxRegistrations: number;
+}
+
+export interface RegistrationStatusSummary {
+  open: boolean;
+  deadlinePassed: boolean;
+  capacityReached: boolean;
+  registeredCount: number;
+  maxRegistrations: number;
+  registrationDeadline: string;
 }
 
 export interface CheckInLookupResult {

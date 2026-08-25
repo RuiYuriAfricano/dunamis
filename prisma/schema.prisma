@@ -41,6 +41,7 @@ enum OccupationStatus {
 model EventSettings {
   id                   Int      @id @default(1)
   registrationDeadline DateTime @map("registration_deadline")
+  maxRegistrations     Int      @default(2000) @map("max_registrations")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   @@map("event_settings")

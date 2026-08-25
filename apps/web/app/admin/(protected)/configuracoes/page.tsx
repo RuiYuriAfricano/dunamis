@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/lib/use-session";
 import { apiFetch, ApiError } from "@/lib/api";
-import type { EventSettingsSummary } from "@dunamis/types";
+import type { EventSettingsSummary, RegistrationStatusSummary } from "@dunamis/types";
 
 function toDatetimeLocalValue(iso: string): string {
   const date = new Date(iso);
@@ -21,12 +21,18 @@ function toDatetimeLocalValue(iso: string): string {
 export default function AdminSettingsPage() {
   const session = useSession();
   const [deadline, setDeadline] = useState("");
+  const [maxRegistrations, setMaxRegistrations] = useState("");
+  const [registeredCount, setRegisteredCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    apiFetch<EventSettingsSummary>("/settings")
-      .then((settings) => setDeadline(toDatetimeLocalValue(settings.registrationDeadline)))
+    apiFetch<RegistrationStatusSummary>("/settings/registration-status")
+      .then((status) => {
+        setDeadline(toDatetimeLocalValue(status.registrationDeadline));
+        setMaxRegistrations(String(status.maxRegistrations));
+        setRegisteredCount(status.registeredCount);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -36,18 +42,27 @@ export default function AdminSettingsPage() {
       toast.error("Indique a data e hora limite.");
       return;
     }
+    const limit = parseInt(maxRegistrations, 10);
+    if (!limit || limit < 1) {
+      toast.error("Indique um limite de inscritos válido.");
+      return;
+    }
 
     setSaving(true);
     try {
       const updated = await apiFetch<EventSettingsSummary>("/settings", {
         method: "PATCH",
         token: session.accessToken,
-        body: JSON.stringify({ registrationDeadline: new Date(deadline).toISOString() }),
+        body: JSON.stringify({
+          registrationDeadline: new Date(deadline).toISOString(),
+          maxRegistrations: limit,
+        }),
       });
       setDeadline(toDatetimeLocalValue(updated.registrationDeadline));
-      toast.success("Prazo de inscrições atualizado.");
+      setMaxRegistrations(String(updated.maxRegistrations));
+      toast.success("Configurações atualizadas.");
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Não foi possível guardar o prazo.");
+      toast.error(error instanceof ApiError ? error.message : "Não foi possível guardar as configurações.");
     } finally {
       setSaving(false);
     }
@@ -66,14 +81,14 @@ export default function AdminSettingsPage() {
           <Settings className="size-6 text-primary" />
           Configurações
         </h1>
-        <p className="text-sm text-muted-foreground">Defina até quando as inscrições ficam abertas no site.</p>
+        <p className="text-sm text-muted-foreground">Defina até quando e até quantos inscritos o site aceita.</p>
       </div>
 
       <Card>
         <CardHeader className="border-b bg-muted/30 px-6 py-4">
-          <h2 className="font-medium">Prazo de inscrições</h2>
+          <h2 className="font-medium">Inscrições</h2>
         </CardHeader>
-        <CardContent className="space-y-4 px-6 py-6">
+        <CardContent className="space-y-5 px-6 py-6">
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Spinner className="size-4" />A carregar...
@@ -92,6 +107,23 @@ export default function AdminSettingsPage() {
                   Depois desta data, o formulário público deixa de aceitar novas inscrições até o prazo ser estendido.
                 </p>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="maxRegistrations">Limite de inscritos</Label>
+                <Input
+                  id="maxRegistrations"
+                  type="number"
+                  min={1}
+                  value={maxRegistrations}
+                  onChange={(e) => setMaxRegistrations(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {registeredCount !== null && `Atualmente ${registeredCount} inscrito(s). `}
+                  Ao atingir este número, o formulário público deixa de aceitar novas inscrições. O registo manual
+                  feito pela equipa continua disponível para casos excepcionais.
+                </p>
+              </div>
+
               <Button onClick={handleSave} disabled={saving}>
                 {saving && <Spinner />}
                 {saving ? "A guardar..." : "Guardar"}

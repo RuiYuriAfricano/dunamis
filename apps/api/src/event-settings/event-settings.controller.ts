@@ -14,12 +14,20 @@ export class EventSettingsController {
     return this.eventSettingsService.get();
   }
 
+  @Get('registration-status')
+  getRegistrationStatus() {
+    return this.eventSettingsService.getRegistrationStatus();
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Patch()
   update(@Body() dto: UpdateEventSettingsDto) {
-    return this.eventSettingsService.updateRegistrationDeadline(
-      new Date(dto.registrationDeadline),
-    );
+    return this.eventSettingsService.update({
+      registrationDeadline: dto.registrationDeadline
+        ? new Date(dto.registrationDeadline)
+        : undefined,
+      maxRegistrations: dto.maxRegistrations,
+    });
   }
 }
