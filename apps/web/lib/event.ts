@@ -5,5 +5,5 @@ export const EVENT_LOCATION = "Kikuxi, Luanda";
 export const EVENT_MEETING_POINT = "Concentração na Terceira Igreja Baptista, dia 16 às 16h";
 export const EVENT_PHONE = "+244 943 027 584";
 
-export const PAYMENT_AMOUNT_VISITOR = 2500;
-export const PAYMENT_AMOUNT_MEMBER = 5000;
+export const PAYMENT_AMOUNT_STUDENT = 5000;
+export const PAYMENT_AMOUNT_WORKER = 10000;

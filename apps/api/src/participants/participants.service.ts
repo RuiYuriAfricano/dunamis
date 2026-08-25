@@ -11,6 +11,7 @@ import * as QRCode from 'qrcode';
 import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { EventSettingsService } from '../event-settings/event-settings.service';
 import { CreateParticipantDto } from './dto/create-participant.dto';
 import { CreateManualParticipantDto } from './dto/create-manual-participant.dto';
 import { LookupParticipantDto } from './dto/lookup-participant.dto';
@@ -19,8 +20,8 @@ import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 import { storePaymentProof } from './payment-proof-storage';
 import { generateRegistrationPdf } from './registration-pdf';
 
-const PAYMENT_AMOUNT_MEMBER = 5000;
-const PAYMENT_AMOUNT_VISITOR = 2500;
+const PAYMENT_AMOUNT_STUDENT = 5000;
+const PAYMENT_AMOUNT_WORKER = 10000;
 
 const PAYMENT_STATUS_LABELS: Record<
   'PENDING' | 'CONFIRMED' | 'REJECTED',
@@ -42,6 +43,7 @@ const PARTICIPANT_SUMMARY_SELECT = {
   email: true,
   birthDate: true,
   isMemberTibl: true,
+  occupationStatus: true,
   baptized: true,
   allergicTo: true,
   firstTime: true,
@@ -88,12 +90,14 @@ export class ParticipantsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly eventSettings: EventSettingsService,
   ) {}
 
   async create(
     dto: CreateParticipantDto,
     paymentProof: Express.Multer.File | undefined,
   ) {
+    await this.eventSettings.assertRegistrationOpen();
     await this.assertTransportStopValid(dto);
 
     if (!dto.isSponsored && !paymentProof) {
@@ -199,9 +203,10 @@ export class ParticipantsService {
 
         const registrationNumber = `DUN-${new Date().getFullYear()}-${String(value).padStart(6, '0')}`;
         const qrToken = nanoid(24);
-        const baseAmount = dto.isMemberTibl
-          ? PAYMENT_AMOUNT_MEMBER
-          : PAYMENT_AMOUNT_VISITOR;
+        const baseAmount =
+          dto.occupationStatus === 'WORKER'
+            ? PAYMENT_AMOUNT_WORKER
+            : PAYMENT_AMOUNT_STUDENT;
         const paymentAmount = dto.isSponsored
           ? 0
           : (extra.paymentAmountOverride ?? baseAmount);
@@ -223,6 +228,7 @@ export class ParticipantsService {
             email: dto.email,
             church: dto.church,
             isMemberTibl: dto.isMemberTibl,
+            occupationStatus: dto.occupationStatus,
             baptized: dto.baptized,
             allergicTo: dto.allergicTo ?? '',
             firstTime: dto.firstTime,
@@ -550,6 +556,7 @@ export class ParticipantsService {
       { header: 'Email', key: 'email', width: 28 },
       { header: 'Igreja', key: 'church', width: 26 },
       { header: 'Membro TIBL', key: 'isMemberTibl', width: 14 },
+      { header: 'Estudante/Trabalhador', key: 'occupationStatus', width: 20 },
       { header: 'Baptizado', key: 'baptized', width: 12 },
       { header: 'Alérgico a', key: 'allergicTo', width: 24 },
       { header: 'Primeira Participação', key: 'firstTime', width: 20 },
@@ -599,6 +606,7 @@ export class ParticipantsService {
         email: p.email,
         church: p.church,
         isMemberTibl: p.isMemberTibl ? 'Sim' : 'Não',
+        occupationStatus: p.occupationStatus === 'WORKER' ? 'Trabalhador' : 'Estudante',
         baptized: p.baptized ? 'Sim' : 'Não',
         allergicTo: p.allergicTo || '-',
         firstTime: p.firstTime ? 'Sim' : 'Não',
@@ -653,6 +661,7 @@ export class ParticipantsService {
     if (query.firstTime !== undefined) where.firstTime = query.firstTime;
     if (query.isMemberTibl !== undefined)
       where.isMemberTibl = query.isMemberTibl;
+    if (query.occupationStatus) where.occupationStatus = query.occupationStatus;
     if (query.baptized !== undefined) where.baptized = query.baptized;
     if (query.isSponsored !== undefined)
       where.isSponsored = query.isSponsored;

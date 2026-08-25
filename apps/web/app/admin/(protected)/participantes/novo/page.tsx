@@ -37,6 +37,7 @@ const schema = z
   .object({
     isMemberTibl: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     church: z.string().optional(),
+    occupationStatus: z.enum(["STUDENT", "WORKER"], { message: "Selecione uma opção." }),
     firstTime: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     baptized: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     fullName: z.string().min(3, "Indique o nome completo."),
@@ -80,7 +81,7 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 const STEPS: { label: string; fields: Path<FormValues>[] }[] = [
-  { label: "Participação", fields: ["isMemberTibl", "church", "firstTime", "baptized"] },
+  { label: "Participação", fields: ["isMemberTibl", "church", "occupationStatus", "firstTime", "baptized"] },
   {
     label: "Dados pessoais",
     fields: [
@@ -145,6 +146,7 @@ export default function ManualRegistrationPage() {
     defaultValues: {
       isMemberTibl: "" as unknown as FormValues["isMemberTibl"],
       church: "",
+      occupationStatus: "" as unknown as FormValues["occupationStatus"],
       firstTime: "" as unknown as FormValues["firstTime"],
       baptized: "" as unknown as FormValues["baptized"],
       gender: "" as unknown as FormValues["gender"],
@@ -314,6 +316,7 @@ export default function ManualRegistrationPage() {
       formData.set("email", values.email);
       formData.set("church", values.isMemberTibl === "true" ? TIBL_NAME : (values.church ?? ""));
       formData.set("isMemberTibl", String(values.isMemberTibl === "true"));
+      formData.set("occupationStatus", values.occupationStatus);
       formData.set("baptized", String(values.baptized === "true"));
       formData.set("allergicTo", values.allergicTo?.trim() ?? "");
       formData.set("firstTime", String(values.firstTime === "true"));
@@ -452,6 +455,23 @@ export default function ManualRegistrationPage() {
                     {errors.church && <p className="text-sm text-destructive">{errors.church.message}</p>}
                   </div>
                 )}
+
+                <div className="space-y-2">
+                  <Label>É estudante ou trabalhador(a)?</Label>
+                  <Controller
+                    control={control}
+                    name="occupationStatus"
+                    render={({ field }) => (
+                      <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                        <label className="flex items-center gap-2 text-sm"><RadioGroupItem value="STUDENT" /> Estudante</label>
+                        <label className="flex items-center gap-2 text-sm"><RadioGroupItem value="WORKER" /> Trabalhador(a)</label>
+                      </RadioGroup>
+                    )}
+                  />
+                  {errors.occupationStatus && (
+                    <p className="text-sm text-destructive">{errors.occupationStatus.message}</p>
+                  )}
+                </div>
 
                 <div className="space-y-2">
                   <Label>É a primeira vez que participa no DUNAMIS?</Label>

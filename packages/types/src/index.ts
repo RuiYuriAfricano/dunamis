@@ -24,6 +24,11 @@ export enum OwnTransportType {
   TAXI = "TAXI",
 }
 
+export enum OccupationStatus {
+  STUDENT = "STUDENT",
+  WORKER = "WORKER",
+}
+
 export interface TransportStopSummary {
   id: string;
   name: string;
@@ -45,6 +50,7 @@ export interface ParticipantSummary {
   whatsapp: string;
   email: string;
   isMemberTibl: boolean;
+  occupationStatus: OccupationStatus;
   baptized: boolean;
   allergicTo: string;
   firstTime: boolean;
@@ -131,6 +137,10 @@ export interface DashboardStats {
   byTransportStop: TransportStopStat[];
   byAgeGroup: AgeGroupStat[];
   byRegistrationDay: RegistrationDayStat[];
+}
+
+export interface EventSettingsSummary {
+  registrationDeadline: string;
 }
 
 export interface CheckInLookupResult {

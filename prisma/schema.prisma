@@ -33,6 +33,19 @@ enum OwnTransportType {
   TAXI
 }
 
+enum OccupationStatus {
+  STUDENT
+  WORKER
+}
+
+model EventSettings {
+  id                   Int      @id @default(1)
+  registrationDeadline DateTime @map("registration_deadline")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("event_settings")
+}
+
 model TransportStop {
   id           String        @id @default(cuid())
   name         String        @unique
@@ -66,6 +79,7 @@ model Participant {
   email                    String            @unique
   church                   String
   isMemberTibl             Boolean           @map("is_member_tibl")
+  occupationStatus         OccupationStatus  @default(STUDENT) @map("occupation_status")
   baptized                 Boolean           @default(false) @map("baptized")
   allergicTo               String            @default("") @map("allergic_to")
   firstTime                Boolean           @map("first_time")

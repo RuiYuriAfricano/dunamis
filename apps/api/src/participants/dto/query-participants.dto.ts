@@ -1,4 +1,4 @@
-import { Gender, MaritalStatus, PaymentStatus } from '@prisma/client';
+import { Gender, MaritalStatus, OccupationStatus, PaymentStatus } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
@@ -37,6 +37,10 @@ export class QueryParticipantsDto {
   @Transform(toBoolean)
   @IsBoolean()
   isMemberTibl?: boolean;
+
+  @IsOptional()
+  @IsEnum(OccupationStatus)
+  occupationStatus?: OccupationStatus;
 
   @IsOptional()
   @Transform(toBoolean)

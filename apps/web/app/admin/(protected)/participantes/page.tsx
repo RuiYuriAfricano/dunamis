@@ -35,7 +35,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/lib/use-session";
 import { apiFetch, API_URL, paymentProofUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { MaritalStatus, PaymentStatus, type ParticipantSummary, type TransportStopSummary } from "@dunamis/types";
+import {
+  MaritalStatus,
+  OccupationStatus,
+  PaymentStatus,
+  type ParticipantSummary,
+  type TransportStopSummary,
+} from "@dunamis/types";
 
 const TRI_STATE_OPTIONS = [
   { value: "all", label: "Todos" },
@@ -74,6 +80,7 @@ interface Filters {
   transportStopId: string;
   firstTime: string;
   isMemberTibl: string;
+  occupationStatus: string;
   baptized: string;
   maritalStatus: string;
   bringingChildren: string;
@@ -93,6 +100,7 @@ const DEFAULT_FILTERS: Filters = {
   transportStopId: "all",
   firstTime: "all",
   isMemberTibl: "all",
+  occupationStatus: "all",
   baptized: "all",
   maritalStatus: "all",
   bringingChildren: "all",
@@ -110,6 +118,12 @@ const MARITAL_STATUS_OPTIONS = [
   { value: "all", label: "Todos" },
   { value: MaritalStatus.SINGLE, label: "Solteiro(a)" },
   { value: MaritalStatus.MARRIED, label: "Casado(a)" },
+];
+
+const OCCUPATION_STATUS_OPTIONS = [
+  { value: "all", label: "Todos" },
+  { value: OccupationStatus.STUDENT, label: "Estudante" },
+  { value: OccupationStatus.WORKER, label: "Trabalhador(a)" },
 ];
 
 const PAGE_SIZE = 25;
@@ -156,6 +170,7 @@ export default function ParticipantsPage() {
     if (filters.transportStopId !== "all") params.set("transportStopId", filters.transportStopId);
     if (filters.paymentStatus !== "all") params.set("paymentStatus", filters.paymentStatus);
     if (filters.maritalStatus !== "all") params.set("maritalStatus", filters.maritalStatus);
+    if (filters.occupationStatus !== "all") params.set("occupationStatus", filters.occupationStatus);
     for (const key of [
       "firstTime",
       "isMemberTibl",
@@ -387,6 +402,23 @@ export default function ParticipantsPage() {
           </SelectContent>
         </Select>
 
+        <Select value={filters.occupationStatus} onValueChange={(v) => updateFilter("occupationStatus", v ?? "all")}>
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="Estudante/Trabalhador">
+              {(value: string) =>
+                `Ocupação: ${OCCUPATION_STATUS_OPTIONS.find((opt) => opt.value === value)?.label ?? "Todos"}`
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {OCCUPATION_STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                Ocupação: {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         {(
           [
             ["firstTime", "Primeira vez"],
@@ -431,6 +463,7 @@ export default function ParticipantsPage() {
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Idade</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Igreja</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Membro TIBL</TableHead>
+              <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Ocupação</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Baptizado</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">1ª vez</TableHead>
               <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">Estado Civil</TableHead>
@@ -452,7 +485,7 @@ export default function ParticipantsPage() {
           <TableBody>
             {loading && (
               <TableRow>
-                <TableCell colSpan={22} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={23} className="py-10 text-center text-muted-foreground">
                   <div className="flex items-center justify-center gap-2">
                     <Spinner className="size-4" />A carregar inscritos...
                   </div>
@@ -462,7 +495,7 @@ export default function ParticipantsPage() {
 
             {!loading && data?.data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={22} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={23} className="py-8 text-center text-muted-foreground">
                   Nenhum inscrito encontrado.
                 </TableCell>
               </TableRow>
@@ -498,6 +531,11 @@ export default function ParticipantsPage() {
                     <TableCell className="text-sm">{p.church}</TableCell>
                     <TableCell className="text-sm">
                       <Badge variant={p.isMemberTibl ? "default" : "secondary"}>{p.isMemberTibl ? "Sim" : "Não"}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <Badge variant={p.occupationStatus === "WORKER" ? "default" : "secondary"}>
+                        {p.occupationStatus === "WORKER" ? "Trabalhador(a)" : "Estudante"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-sm">
                       <Badge variant={p.baptized ? "default" : "secondary"}>{p.baptized ? "Sim" : "Não"}</Badge>

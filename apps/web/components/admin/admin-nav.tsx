@@ -13,10 +13,13 @@ const LINKS = [
   { href: "/check-in", label: "Check-in" },
 ];
 
+const ADMIN_ONLY_LINKS = [{ href: "/admin/configuracoes", label: "Configurações" }];
+
 export function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
   const session = useSession();
+  const links = session?.role === "ADMIN" ? [...LINKS, ...ADMIN_ONLY_LINKS] : LINKS;
 
   function logout() {
     clearSession();
@@ -39,7 +42,7 @@ export function AdminNav() {
           />
         </Link>
         <nav className="flex items-center gap-4 text-sm">
-          {LINKS.map((link) => (
+          {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}

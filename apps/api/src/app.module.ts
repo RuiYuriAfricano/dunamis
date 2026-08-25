@@ -10,6 +10,7 @@ import { TransportStopsModule } from './transport-stops/transport-stops.module';
 import { TentTypesModule } from './tent-types/tent-types.module';
 import { CheckInModule } from './check-in/check-in.module';
 import { StatsModule } from './stats/stats.module';
+import { EventSettingsModule } from './event-settings/event-settings.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { StatsModule } from './stats/stats.module';
     TentTypesModule,
     CheckInModule,
     StatsModule,
+    EventSettingsModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -25,7 +25,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Stepper } from "@/components/registration/stepper";
 import { FileUpload } from "@/components/registration/file-upload";
 import { apiFetch, ApiError } from "@/lib/api";
-import { EVENT_PHONE, PAYMENT_AMOUNT_MEMBER, PAYMENT_AMOUNT_VISITOR } from "@/lib/event";
+import { EVENT_PHONE, PAYMENT_AMOUNT_STUDENT, PAYMENT_AMOUNT_WORKER } from "@/lib/event";
 import { formatAngolaPhone, stripPhoneMask } from "@/lib/masks";
 import type { ParticipantConfirmation, TentTypeSummary, TransportStopSummary } from "@dunamis/types";
 
@@ -35,6 +35,7 @@ const schema = z
   .object({
     isMemberTibl: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     church: z.string().optional(),
+    occupationStatus: z.enum(["STUDENT", "WORKER"], { message: "Selecione uma opção." }),
     firstTime: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     baptized: z.enum(["true", "false"], { message: "Selecione uma opção." }),
     fullName: z.string().min(3, "Indique o nome completo."),
@@ -89,7 +90,7 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 const STEPS: { label: string; fields: Path<FormValues>[] }[] = [
-  { label: "Participação", fields: ["isMemberTibl", "church", "firstTime", "baptized"] },
+  { label: "Participação", fields: ["isMemberTibl", "church", "occupationStatus", "firstTime", "baptized"] },
   {
     label: "Dados pessoais",
     fields: [
@@ -152,6 +153,7 @@ export function RegistrationForm({
     defaultValues: {
       isMemberTibl: "" as unknown as FormValues["isMemberTibl"],
       church: "",
+      occupationStatus: "" as unknown as FormValues["occupationStatus"],
       firstTime: "" as unknown as FormValues["firstTime"],
       baptized: "" as unknown as FormValues["baptized"],
       gender: "" as unknown as FormValues["gender"],
@@ -195,7 +197,8 @@ export function RegistrationForm({
     }
   }, [isMemberTibl, setValue]);
 
-  const totalAmount = isMemberTibl === "true" ? PAYMENT_AMOUNT_MEMBER : PAYMENT_AMOUNT_VISITOR;
+  const occupationStatus = watch("occupationStatus");
+  const totalAmount = occupationStatus === "WORKER" ? PAYMENT_AMOUNT_WORKER : PAYMENT_AMOUNT_STUDENT;
 
   async function goNext() {
     let valid = await trigger(STEPS[step].fields);
@@ -309,6 +312,7 @@ export function RegistrationForm({
       formData.set("email", values.email);
       formData.set("church", values.isMemberTibl === "true" ? TIBL_NAME : (values.church ?? ""));
       formData.set("isMemberTibl", String(values.isMemberTibl === "true"));
+      formData.set("occupationStatus", values.occupationStatus);
       formData.set("baptized", String(values.baptized === "true"));
       formData.set("allergicTo", values.allergicTo?.trim() ?? "");
       formData.set("firstTime", String(values.firstTime === "true"));
@@ -406,6 +410,27 @@ export function RegistrationForm({
                   {errors.church && <p className="text-sm text-destructive">{errors.church.message}</p>}
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label>É estudante ou trabalhador(a)?</Label>
+                <Controller
+                  control={control}
+                  name="occupationStatus"
+                  render={({ field }) => (
+                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="STUDENT" /> Estudante
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="WORKER" /> Trabalhador(a)
+                      </label>
+                    </RadioGroup>
+                  )}
+                />
+                {errors.occupationStatus && (
+                  <p className="text-sm text-destructive">{errors.occupationStatus.message}</p>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <Label>É a primeira vez que participa no DUNAMIS?</Label>
@@ -919,9 +944,7 @@ export function RegistrationForm({
                     <p className="text-sm text-muted-foreground">Valor da inscrição</p>
                     <p className="text-2xl font-bold text-primary">{totalAmount.toLocaleString("pt-PT")} Kz</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {isMemberTibl === "true"
-                        ? "Valor para membros da Terceira Igreja Baptista de Luanda."
-                        : "Valor para visitantes de outras igrejas."}
+                      {occupationStatus === "WORKER" ? "Valor para trabalhadores." : "Valor para estudantes."}
                     </p>
                   </div>
 
