@@ -9,16 +9,15 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { apiFetch } from "@/lib/api";
 import { EVENT_DATE_RANGE, EVENT_SCHEDULE, EVENT_LOCATION, EVENT_MEETING_POINT } from "@/lib/event";
+import type { EventSettingsSummary } from "@dunamis/types";
 
-const INFO_ITEMS = [
-  { label: "Data", value: EVENT_DATE_RANGE, icon: "📅" },
-  { label: "Horário", value: EVENT_SCHEDULE, icon: "🕐" },
-  { label: "Local", value: EVENT_LOCATION, icon: "📍" },
-  { label: "Concentração", value: EVENT_MEETING_POINT, icon: "🚩" },
-  { label: "Transporte", value: "Disponibilizado pela organização, com 4 paragens", icon: "🚌" },
-  { label: "Alojamento", value: "Tendas e colchões disponíveis mediante inscrição", icon: "⛺" },
-];
+export const dynamic = "force-dynamic";
+
+function formatDeadline(iso: string) {
+  return new Date(iso).toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" });
+}
 
 const FAQ_ITEMS = [
   {
@@ -48,7 +47,20 @@ const FAQ_ITEMS = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const settings = await apiFetch<EventSettingsSummary>("/settings");
+  const deadlineLabel = formatDeadline(settings.registrationDeadline);
+
+  const infoItems = [
+    { label: "Data", value: EVENT_DATE_RANGE, icon: "📅" },
+    { label: "Horário", value: EVENT_SCHEDULE, icon: "🕐" },
+    { label: "Local", value: EVENT_LOCATION, icon: "📍" },
+    { label: "Concentração", value: EVENT_MEETING_POINT, icon: "🚩" },
+    { label: "Prazo de inscrição", value: `Até ${deadlineLabel}`, icon: "⏳" },
+    { label: "Transporte", value: "Disponibilizado pela organização, com 4 paragens", icon: "🚌" },
+    { label: "Alojamento", value: "Tendas e colchões disponíveis mediante inscrição", icon: "⛺" },
+  ];
+
   return (
     <>
       <section className="relative overflow-hidden bg-dunamis-green text-dunamis-green-foreground">
@@ -71,6 +83,9 @@ export default function HomePage() {
                 📅 {EVENT_DATE_RANGE}
               </span>
               <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">📍 {EVENT_LOCATION}</span>
+              <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
+                ⏳ Inscrições até {deadlineLabel}
+              </span>
             </div>
             <div className="animate-in fade-in slide-in-from-bottom-4 flex gap-3 delay-200 duration-700 fill-mode-both">
               <Button nativeButton={false} render={<Link href="/inscricao" />} size="lg">
@@ -129,7 +144,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-5xl px-6 py-16">
           <h2 className="font-display text-2xl tracking-wide text-dunamis-green">Informações</h2>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {INFO_ITEMS.map((item) => (
+            {infoItems.map((item) => (
               <Card
                 key={item.label}
                 className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"

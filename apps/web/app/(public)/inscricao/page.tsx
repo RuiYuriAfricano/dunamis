@@ -31,6 +31,16 @@ export default async function InscricaoPage() {
             <span>📅 {EVENT_DATE_RANGE}</span>
             <span>📍 {EVENT_LOCATION}</span>
           </p>
+          {!registrationClosed && (
+            <p className="mt-2 text-sm font-medium text-primary">
+              ⏳ Inscrições até{" "}
+              {new Date(settings.registrationDeadline).toLocaleDateString("pt-PT", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
+            </p>
+          )}
         </div>
         {registrationClosed ? (
           <div className="mx-auto max-w-2xl rounded-xl border bg-muted/30 p-8 text-center">
