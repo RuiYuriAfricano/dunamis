@@ -19,8 +19,8 @@ export function SiteFooter() {
           <Image
             src="/logo-tibl.png"
             alt="Terceira Igreja Baptista de Luanda"
-            width={992}
-            height={992}
+            width={500}
+            height={500}
             className="h-9 w-9 rounded-full opacity-90"
           />
         </div>

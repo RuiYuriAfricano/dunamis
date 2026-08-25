@@ -36,6 +36,8 @@ const STAT_CARDS: { key: keyof DashboardStats; label: string }[] = [
   { key: "totalTentRequired", label: "Precisam de tenda" },
   { key: "totalMattressRequired", label: "Precisam de colchão" },
   { key: "totalCheckedIn", label: "Já fizeram check-in" },
+  { key: "totalWorkers", label: "Trabalhadores" },
+  { key: "totalBaptized", label: "Baptizados" },
 ];
 
 function formatDay(isoDate: string) {
