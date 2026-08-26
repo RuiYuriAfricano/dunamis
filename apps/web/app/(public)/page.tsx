@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ShieldCheck } from "lucide-react";
+import { FileText, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -9,9 +9,26 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { PdfViewerDialog } from "@/components/pdf-viewer-dialog";
 import { apiFetch } from "@/lib/api";
-import { EVENT_DATE_RANGE, EVENT_SCHEDULE, EVENT_LOCATION, EVENT_MEETING_POINT } from "@/lib/event";
+import {
+  EVENT_DATE_RANGE,
+  EVENT_SCHEDULE,
+  EVENT_LOCATION,
+  EVENT_MEETING_POINT,
+  PAYMENT_AMOUNT_STUDENT,
+  PAYMENT_AMOUNT_WORKER,
+} from "@/lib/event";
 import type { EventSettingsSummary } from "@dunamis/types";
+
+const HIGHLIGHTS = [
+  "🎵 Música ao vivo",
+  "📖 Pregação da Palavra",
+  "🌊 Batismos",
+  "⚽ Desportos e jogos",
+  "🔥 Fogueira",
+  "🎨 Arte e cultura",
+];
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +74,11 @@ export default async function HomePage() {
     { label: "Local", value: EVENT_LOCATION, icon: "📍" },
     { label: "Concentração", value: EVENT_MEETING_POINT, icon: "🚩" },
     { label: "Prazo de inscrição", value: `Até ${deadlineLabel}`, icon: "⏳" },
+    {
+      label: "Valor da inscrição",
+      value: `Estudante: ${PAYMENT_AMOUNT_STUDENT.toLocaleString("pt-PT")} Kz · Trabalhador: ${PAYMENT_AMOUNT_WORKER.toLocaleString("pt-PT")} Kz`,
+      icon: "💳",
+    },
     { label: "Transporte", value: "Disponibilizado pela organização, com 4 paragens", icon: "🚌" },
     { label: "Alojamento", value: "Tendas e colchões disponíveis mediante inscrição", icon: "⛺" },
   ];
@@ -124,6 +146,31 @@ export default async function HomePage() {
           espiritual e formação entre jovens e membros de diferentes igrejas. Este ano esperamos
           reunir cerca de 2.000 participantes para dias de convivência, ensino e adoração.
         </p>
+        <p className="mt-4 max-w-3xl text-muted-foreground">
+          Ao longo de 3 dias vais viver música ao vivo, pregações que desafiam e transformam,
+          batismos nas águas, desportos, jogos, fogueiras à noite e muito mais — tudo pensado para
+          acelerar o teu crescimento espiritual e ampliar os teus horizontes. Não venhas só: traz
+          alguém contigo e conhece gente nova.
+        </p>
+        <div className="mt-5 flex max-w-3xl flex-wrap gap-2 text-sm text-muted-foreground">
+          {HIGHLIGHTS.map((item) => (
+            <span key={item} className="rounded-full border bg-background px-3 py-1">
+              {item}
+            </span>
+          ))}
+        </div>
+        <div className="mt-6">
+          <PdfViewerDialog
+            src="/dunamis-prospecto.pdf"
+            title="Prospecto do Acampamento DUNAMIS"
+            trigger={
+              <Button variant="outline" size="lg">
+                <FileText className="size-4" aria-hidden />
+                Ver prospecto completo
+              </Button>
+            }
+          />
+        </div>
       </section>
 
       <section id="video" className="mx-auto w-full max-w-4xl px-6 pb-16">
