@@ -7,7 +7,6 @@ import {
   Users,
   PhoneCall,
   FileText,
-  Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -90,9 +89,9 @@ export default function NormasPage() {
             <p className="text-sm text-muted-foreground">Documento oficial completo, em PDF.</p>
           </div>
         </div>
-        <Button nativeButton={false} render={<a href="/regras-dunamis-2026.pdf" target="_blank" rel="noreferrer" download />}>
-          <Download className="size-4" aria-hidden />
-          Descarregar PDF
+        <Button nativeButton={false} render={<a href="/regras-dunamis-2026.pdf" target="_blank" rel="noreferrer" />}>
+          <FileText className="size-4" aria-hidden />
+          Ver PDF completo
         </Button>
       </Card>
 
