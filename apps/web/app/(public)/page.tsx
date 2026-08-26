@@ -9,7 +9,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { PdfViewerDialog } from "@/components/pdf-viewer-dialog";
 import { apiFetch } from "@/lib/api";
 import {
   EVENT_DATE_RANGE,
@@ -160,16 +159,15 @@ export default async function HomePage() {
           ))}
         </div>
         <div className="mt-6">
-          <PdfViewerDialog
-            src="/dunamis-prospecto.pdf"
-            title="Prospecto do Acampamento DUNAMIS"
-            trigger={
-              <Button variant="outline" size="lg">
-                <FileText className="size-4" aria-hidden />
-                Ver prospecto completo
-              </Button>
-            }
-          />
+          <Button
+            variant="outline"
+            size="lg"
+            nativeButton={false}
+            render={<a href="/dunamis-prospecto.pdf" target="_blank" rel="noreferrer" />}
+          >
+            <FileText className="size-4" aria-hidden />
+            Ver prospecto completo
+          </Button>
         </div>
       </section>
 

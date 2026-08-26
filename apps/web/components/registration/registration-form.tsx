@@ -25,7 +25,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { Stepper } from "@/components/registration/stepper";
 import { FileUpload } from "@/components/registration/file-upload";
 import { apiFetch, ApiError } from "@/lib/api";
-import { EVENT_PHONE, PAYMENT_AMOUNT_STUDENT, PAYMENT_AMOUNT_WORKER } from "@/lib/event";
+import {
+  EVENT_IBAN,
+  EVENT_IBAN_HOLDER,
+  EVENT_PHONE,
+  PAYMENT_AMOUNT_STUDENT,
+  PAYMENT_AMOUNT_WORKER,
+} from "@/lib/event";
 import { formatAngolaPhone, stripPhoneMask } from "@/lib/masks";
 import type { ParticipantConfirmation, TentTypeSummary, TransportStopSummary } from "@dunamis/types";
 
@@ -952,7 +958,16 @@ export function RegistrationForm({
                     <p>
                       Efetue o pagamento via <span className="font-medium text-foreground">Multicaixa Express</span>{" "}
                       para o número {EVENT_PHONE} ou por <span className="font-medium text-foreground">transferência
-                      bancária (IBAN)</span>, e carregue o comprovativo (captura de ecrã ou PDF) abaixo.
+                      bancária</span>, e carregue o comprovativo (captura de ecrã ou PDF) abaixo.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1 rounded-lg bg-muted/50 p-3 text-sm">
+                    <p className="text-muted-foreground">
+                      IBAN <span className="font-medium text-foreground">{EVENT_IBAN}</span>
+                    </p>
+                    <p className="text-muted-foreground">
+                      Titular <span className="font-medium text-foreground">{EVENT_IBAN_HOLDER}</span>
                     </p>
                   </div>
 
