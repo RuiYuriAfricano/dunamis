@@ -28,7 +28,6 @@ import { apiFetch, ApiError } from "@/lib/api";
 import {
   EVENT_IBAN,
   EVENT_IBAN_HOLDER,
-  EVENT_PHONE,
   PAYMENT_AMOUNT_STUDENT,
   PAYMENT_AMOUNT_WORKER,
 } from "@/lib/event";
@@ -956,9 +955,8 @@ export function RegistrationForm({
 
                   <div className="space-y-2 text-sm text-muted-foreground">
                     <p>
-                      Efetue o pagamento via <span className="font-medium text-foreground">Multicaixa Express</span>{" "}
-                      para o número {EVENT_PHONE} ou por <span className="font-medium text-foreground">transferência
-                      bancária</span>, e carregue o comprovativo (captura de ecrã ou PDF) abaixo.
+                      Efetue o pagamento por <span className="font-medium text-foreground">transferência bancária</span>{" "}
+                      para o IBAN indicado abaixo, e carregue o comprovativo (captura de ecrã ou PDF).
                     </p>
                   </div>
 
