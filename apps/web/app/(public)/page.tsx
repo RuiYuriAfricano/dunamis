@@ -9,7 +9,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { apiFetch } from "@/lib/api";
 import {
   EVENT_DATE_RANGE,
   EVENT_SCHEDULE,
@@ -18,7 +17,6 @@ import {
   PAYMENT_AMOUNT_STUDENT,
   PAYMENT_AMOUNT_WORKER,
 } from "@/lib/event";
-import type { EventSettingsSummary } from "@dunamis/types";
 
 const HIGHLIGHTS = [
   "🎵 Música ao vivo",
@@ -29,11 +27,23 @@ const HIGHLIGHTS = [
   "🎨 Arte e cultura",
 ];
 
-export const dynamic = "force-dynamic";
-
-function formatDeadline(iso: string) {
-  return new Date(iso).toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" });
-}
+// Deliberately static — the deadline/capacity check only happens where it
+// actually gates something, on /inscricao. That keeps this page servable
+// from cache instead of blocking every homepage visit on the API (and, on
+// the free tiers, on Render/Neon waking up from a cold start).
+const infoItems = [
+  { label: "Data", value: EVENT_DATE_RANGE, icon: "📅" },
+  { label: "Horário", value: EVENT_SCHEDULE, icon: "🕐" },
+  { label: "Local", value: EVENT_LOCATION, icon: "📍" },
+  { label: "Concentração", value: EVENT_MEETING_POINT, icon: "🚩" },
+  {
+    label: "Valor da inscrição",
+    value: `Estudante: ${PAYMENT_AMOUNT_STUDENT.toLocaleString("pt-PT")} Kz · Trabalhador: ${PAYMENT_AMOUNT_WORKER.toLocaleString("pt-PT")} Kz`,
+    icon: "💳",
+  },
+  { label: "Transporte", value: "Disponibilizado pela organização, com 4 paragens", icon: "🚌" },
+  { label: "Alojamento", value: "Tendas e colchões disponíveis mediante inscrição", icon: "⛺" },
+];
 
 const FAQ_ITEMS = [
   {
@@ -63,25 +73,7 @@ const FAQ_ITEMS = [
   },
 ];
 
-export default async function HomePage() {
-  const settings = await apiFetch<EventSettingsSummary>("/settings");
-  const deadlineLabel = formatDeadline(settings.registrationDeadline);
-
-  const infoItems = [
-    { label: "Data", value: EVENT_DATE_RANGE, icon: "📅" },
-    { label: "Horário", value: EVENT_SCHEDULE, icon: "🕐" },
-    { label: "Local", value: EVENT_LOCATION, icon: "📍" },
-    { label: "Concentração", value: EVENT_MEETING_POINT, icon: "🚩" },
-    { label: "Prazo de inscrição", value: `Até ${deadlineLabel}`, icon: "⏳" },
-    {
-      label: "Valor da inscrição",
-      value: `Estudante: ${PAYMENT_AMOUNT_STUDENT.toLocaleString("pt-PT")} Kz · Trabalhador: ${PAYMENT_AMOUNT_WORKER.toLocaleString("pt-PT")} Kz`,
-      icon: "💳",
-    },
-    { label: "Transporte", value: "Disponibilizado pela organização, com 4 paragens", icon: "🚌" },
-    { label: "Alojamento", value: "Tendas e colchões disponíveis mediante inscrição", icon: "⛺" },
-  ];
-
+export default function HomePage() {
   return (
     <>
       <section className="relative overflow-hidden bg-dunamis-green text-dunamis-green-foreground">
@@ -104,9 +96,6 @@ export default async function HomePage() {
                 📅 {EVENT_DATE_RANGE}
               </span>
               <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">📍 {EVENT_LOCATION}</span>
-              <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
-                ⏳ Inscrições até {deadlineLabel}
-              </span>
             </div>
             <div className="animate-in fade-in slide-in-from-bottom-4 flex gap-3 delay-200 duration-700 fill-mode-both">
               <Button nativeButton={false} render={<Link href="/inscricao" />} size="lg">
