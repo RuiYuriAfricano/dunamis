@@ -23,6 +23,11 @@ import { generateRegistrationPdf } from './registration-pdf';
 const PAYMENT_AMOUNT_STUDENT = 5000;
 const PAYMENT_AMOUNT_WORKER = 10000;
 
+// How often the organisers get a milestone email with the latest sign-ups —
+// keeps Brevo's free-tier daily send limit safe under a heavy registration
+// day instead of firing one notification per registration.
+const REGISTRATION_BATCH_SIZE = 10;
+
 const PAYMENT_STATUS_LABELS: Record<
   'PENDING' | 'CONFIRMED' | 'REJECTED',
   string
@@ -125,6 +130,7 @@ export class ParticipantsService {
     const participant = await this.insertParticipant(dto, {
       paymentProofPath,
     });
+    this.notifyRegistrationBatch();
 
     const qrCodeDataUrl = await QRCode.toDataURL(participant.qrToken, {
       margin: 1,
@@ -180,6 +186,7 @@ export class ParticipantsService {
     });
 
     this.dispatchPaymentStatusEmail(participant, status);
+    this.notifyRegistrationBatch();
 
     return this.findOne(participant.id);
   }
@@ -469,6 +476,35 @@ export class ParticipantsService {
           this.logger.error(`Falha ao enviar email de rejeição: ${error.message}`),
         );
     }
+  }
+
+  // Fires a milestone email every REGISTRATION_BATCH_SIZE registrations
+  // (public or manual) instead of one per registration, so a busy day
+  // doesn't burn through Brevo's daily send limit. Not awaited by callers —
+  // same "never blocks the actual registration" rule as payment emails.
+  private notifyRegistrationBatch(): void {
+    this.prisma.participant
+      .count({ where: { deletedAt: null } })
+      .then(async (totalCount) => {
+        if (totalCount === 0 || totalCount % REGISTRATION_BATCH_SIZE !== 0) return;
+
+        const recent = await this.prisma.participant.findMany({
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: REGISTRATION_BATCH_SIZE,
+          select: {
+            registrationNumber: true,
+            fullName: true,
+            phone: true,
+            church: true,
+          },
+        });
+
+        await this.mail.sendRegistrationBatchNotification({ totalCount, participants: recent });
+      })
+      .catch((error) =>
+        this.logger.error(`Falha ao enviar notificação de lote de inscrições: ${error.message}`),
+      );
   }
 
   private async sendConfirmationEmail(participant: ParticipantWithTransportStop) {

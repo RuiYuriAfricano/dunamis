@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 const SENDER_NAME = 'DUNAMIS · Terceira Igreja Baptista de Luanda';
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
+const NOTIFICATION_EMAIL = 'dunamismanancial@gmail.com';
 
 interface PaymentConfirmedEmailInput {
   to: string;
@@ -16,6 +17,16 @@ interface PaymentRejectedEmailInput {
   fullName: string;
   registrationNumber: string;
   reason?: string;
+}
+
+interface RegistrationBatchNotificationInput {
+  totalCount: number;
+  participants: {
+    registrationNumber: string;
+    fullName: string;
+    phone: string;
+    church: string;
+  }[];
 }
 
 interface BrevoEmailPayload {
@@ -143,6 +154,27 @@ export class MailService {
       `email de rejeição para ${input.to} (${input.registrationNumber})`,
     );
   }
+
+  async sendRegistrationBatchNotification(input: RegistrationBatchNotificationInput) {
+    const senderEmail = this.getSenderEmail();
+    if (!senderEmail) return;
+
+    await this.send(
+      {
+        sender: { name: SENDER_NAME, email: senderEmail },
+        to: [{ email: NOTIFICATION_EMAIL }],
+        subject: `${input.totalCount} inscrições no DUNAMIS`,
+        textContent:
+          `Total de inscrições até agora: ${input.totalCount}\n\n` +
+          `Últimas ${input.participants.length}:\n` +
+          input.participants
+            .map((p) => `- ${p.registrationNumber} · ${p.fullName} (${p.church}) · ${p.phone}`)
+            .join('\n'),
+        htmlContent: registrationBatchHtml(input.totalCount, input.participants),
+      },
+      `notificação de lote (${input.totalCount} inscrições)`,
+    );
+  }
 }
 
 function emailShell(bodyHtml: string): string {
@@ -195,6 +227,28 @@ function paymentConfirmedHtml(
       telemóvel — no check-in, no dia do evento.
     </p>
     <p style="margin:24px 0 0;color:#5a5a5a;">Até já,<br/>Equipa DUNAMIS</p>
+  `);
+}
+
+function registrationBatchHtml(
+  totalCount: number,
+  participants: RegistrationBatchNotificationInput['participants'],
+): string {
+  const rows = participants
+    .map(
+      (p) => `
+    <li style="margin-bottom:6px;">
+      <strong>${p.registrationNumber}</strong> · ${p.fullName} (${p.church}) · ${p.phone}
+    </li>`,
+    )
+    .join('');
+
+  return emailShell(`
+    <p style="margin:0 0 16px;">
+      Total de inscrições até agora: <strong>${totalCount}</strong>
+    </p>
+    <p style="margin:0 0 8px;">Últimas ${participants.length} inscrições:</p>
+    <ul style="margin:0;padding-left:20px;">${rows}</ul>
   `);
 }
 
