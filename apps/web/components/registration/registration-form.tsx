@@ -7,7 +7,7 @@ import { useForm, Controller, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ShieldCheck, Gift, Tent } from "lucide-react";
+import { ShieldCheck, Tent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,7 +81,6 @@ const schema = z
     tentPurchaseQuantity: z.string().optional(),
     wantsToBuyMattress: z.enum(["true", "false"]).optional(),
     mattressPurchaseQuantity: z.string().optional(),
-    isSponsored: z.enum(["true", "false"], { message: "Selecione uma opção." }),
   })
   .refine((data) => data.transportRequired === "false" || !!data.transportStopId, {
     message: "Selecione a paragem de transporte.",
@@ -126,7 +125,7 @@ const STEPS: { label: string; fields: Path<FormValues>[] }[] = [
       "mattressPurchaseQuantity",
     ],
   },
-  { label: "Pagamento", fields: ["isSponsored"] },
+  { label: "Pagamento", fields: [] },
 ];
 
 export function RegistrationForm({
@@ -180,13 +179,11 @@ export function RegistrationForm({
       wantsToBuyMattress: "false",
       mattressPurchaseQuantity: "1",
       transportRequired: "false",
-      isSponsored: "false",
     },
   });
 
   const transportRequired = watch("transportRequired");
   const isMemberTibl = watch("isMemberTibl");
-  const isSponsored = watch("isSponsored");
   const bringingChildren = watch("bringingChildren");
   const ownTransportType = watch("ownTransportType");
   const tentRequired = watch("tentRequired");
@@ -300,8 +297,7 @@ export function RegistrationForm({
   }
 
   async function onSubmit(values: FormValues) {
-    const sponsored = values.isSponsored === "true";
-    if (!sponsored && !paymentProof) {
+    if (!paymentProof) {
       setPaymentProofError("Carregue o comprovativo de pagamento.");
       return;
     }
@@ -350,10 +346,8 @@ export function RegistrationForm({
       if (buyingMattress) {
         formData.set("mattressPurchaseQuantity", values.mattressPurchaseQuantity ?? "1");
       }
-      formData.set("isSponsored", String(sponsored));
-      if (!sponsored && paymentProof) {
-        formData.set("paymentProof", paymentProof);
-      }
+      formData.set("isSponsored", "false");
+      formData.set("paymentProof", paymentProof);
 
       const confirmation = await apiFetch<ParticipantConfirmation>("/participants", {
         method: "POST",
@@ -916,73 +910,42 @@ export function RegistrationForm({
 
           {step === 4 && (
             <section className="animate-in fade-in slide-in-from-right-2 space-y-5 duration-300">
-              <div className="space-y-2">
-                <Label>É patrocinado(a) ou bolseiro(a)?</Label>
-                <Controller
-                  control={control}
-                  name="isSponsored"
-                  render={({ field }) => (
-                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
-                      <label className="flex items-center gap-2 text-sm">
-                        <RadioGroupItem value="true" /> Sim
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <RadioGroupItem value="false" /> Não
-                      </label>
-                    </RadioGroup>
-                  )}
-                />
-                {errors.isSponsored && <p className="text-sm text-destructive">{errors.isSponsored.message}</p>}
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <p className="text-sm text-muted-foreground">Valor da inscrição</p>
+                <p className="text-2xl font-bold text-primary">{totalAmount.toLocaleString("pt-PT")} Kz</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {occupationStatus === "WORKER" ? "Valor para trabalhadores." : "Valor para estudantes."}
+                </p>
               </div>
 
-              {isSponsored === "true" ? (
-                <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm text-muted-foreground">
-                  <Gift className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
-                  <p>
-                    Não é necessário carregar comprovativo de pagamento. A sua inscrição como patrocinado(a)/bolseiro(a)
-                    será revista pela organização — só depois de aprovada receberá o QR Code de acesso por email.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-                    <p className="text-sm text-muted-foreground">Valor da inscrição</p>
-                    <p className="text-2xl font-bold text-primary">{totalAmount.toLocaleString("pt-PT")} Kz</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {occupationStatus === "WORKER" ? "Valor para trabalhadores." : "Valor para estudantes."}
-                    </p>
-                  </div>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  Efetue o pagamento por <span className="font-medium text-foreground">transferência bancária</span>{" "}
+                  para o IBAN indicado abaixo, e carregue o comprovativo (captura de ecrã ou PDF).
+                </p>
+              </div>
 
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>
-                      Efetue o pagamento por <span className="font-medium text-foreground">transferência bancária</span>{" "}
-                      para o IBAN indicado abaixo, e carregue o comprovativo (captura de ecrã ou PDF).
-                    </p>
-                  </div>
+              <div className="space-y-1 rounded-lg bg-muted/50 p-3 text-sm">
+                <p className="text-muted-foreground">
+                  IBAN <span className="font-medium text-foreground">{EVENT_IBAN}</span>
+                </p>
+                <p className="text-muted-foreground">
+                  Titular <span className="font-medium text-foreground">{EVENT_IBAN_HOLDER}</span>
+                </p>
+              </div>
 
-                  <div className="space-y-1 rounded-lg bg-muted/50 p-3 text-sm">
-                    <p className="text-muted-foreground">
-                      IBAN <span className="font-medium text-foreground">{EVENT_IBAN}</span>
-                    </p>
-                    <p className="text-muted-foreground">
-                      Titular <span className="font-medium text-foreground">{EVENT_IBAN_HOLDER}</span>
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Comprovativo de pagamento</Label>
-                    <FileUpload
-                      value={paymentProof}
-                      onChange={(file) => {
-                        setPaymentProof(file);
-                        if (file) setPaymentProofError(null);
-                      }}
-                      accept="image/*,application/pdf"
-                      error={paymentProofError ?? undefined}
-                    />
-                  </div>
-                </>
-              )}
+              <div className="space-y-2">
+                <Label>Comprovativo de pagamento</Label>
+                <FileUpload
+                  value={paymentProof}
+                  onChange={(file) => {
+                    setPaymentProof(file);
+                    if (file) setPaymentProofError(null);
+                  }}
+                  accept="image/*,application/pdf"
+                  error={paymentProofError ?? undefined}
+                />
+              </div>
 
               <p className="flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
                 <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
