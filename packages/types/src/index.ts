@@ -134,6 +134,8 @@ export interface DashboardStats {
   totalCheckedIn: number;
   totalWorkers: number;
   totalBaptized: number;
+  totalTaxi: number;
+  totalOwnCar: number;
   totalRevenueKz: number;
   totalPeopleBuyingTent: number;
   totalPeopleBuyingMattress: number;
