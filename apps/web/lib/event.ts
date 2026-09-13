@@ -7,5 +7,5 @@ export const EVENT_PHONE = "+244 943 027 584";
 export const EVENT_IBAN = "AO06 0040 0000 3348 1504 1012 2";
 export const EVENT_IBAN_HOLDER = "Perfil Ônus, Lda";
 
-export const PAYMENT_AMOUNT_STUDENT = 5000;
-export const PAYMENT_AMOUNT_WORKER = 10000;
+export const PAYMENT_AMOUNT_STUDENT = 15000;
+export const PAYMENT_AMOUNT_WORKER = 20000;

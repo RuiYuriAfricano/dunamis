@@ -20,8 +20,8 @@ import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 import { storePaymentProof } from './payment-proof-storage';
 import { generateRegistrationPdf } from './registration-pdf';
 
-const PAYMENT_AMOUNT_STUDENT = 5000;
-const PAYMENT_AMOUNT_WORKER = 10000;
+const PAYMENT_AMOUNT_STUDENT = 15000;
+const PAYMENT_AMOUNT_WORKER = 20000;
 
 // How often the organisers get a milestone email with the latest sign-ups —
 // keeps Brevo's free-tier daily send limit safe under a heavy registration
