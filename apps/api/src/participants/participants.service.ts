@@ -89,6 +89,30 @@ type ParticipantWithTransportStop = Prisma.ParticipantGetPayload<{
   include: { transportStop: { select: { id: true; name: true } } };
 }>;
 
+function serializeValue(value: unknown): string | number | boolean | null {
+  if (value instanceof Date) return value.toISOString();
+  if (value === undefined) return null;
+  return value as string | number | boolean | null;
+}
+
+// Compares only the keys present in `after` (the fields the edit form
+// actually submits) against their current DB values, so the audit log only
+// ever records what genuinely changed.
+function diffFields(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): { field: string; oldValue: unknown; newValue: unknown }[] {
+  const changes: { field: string; oldValue: unknown; newValue: unknown }[] = [];
+  for (const key of Object.keys(after)) {
+    const oldValue = serializeValue(before[key]);
+    const newValue = serializeValue(after[key]);
+    if (oldValue !== newValue) {
+      changes.push({ field: key, oldValue, newValue });
+    }
+  }
+  return changes;
+}
+
 @Injectable()
 export class ParticipantsService {
   private readonly logger = new Logger(ParticipantsService.name);
@@ -189,6 +213,170 @@ export class ParticipantsService {
     this.notifyRegistrationBatch();
 
     return this.findOne(participant.id);
+  }
+
+  /**
+   * Admin-only: corrects any field on an existing registration. Reuses the
+   * same shape/validation as manual registration since the edit form always
+   * submits a complete, coherent snapshot (pre-filled from the current
+   * record) rather than a sparse patch. Every actually-changed field is
+   * recorded in ParticipantEditLog for the audit trail.
+   */
+  async updateParticipant(
+    id: string,
+    dto: CreateManualParticipantDto,
+    adminId: string,
+    paymentProof: Express.Multer.File | undefined,
+  ) {
+    const current = await this.prisma.participant.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!current) {
+      throw new NotFoundException('Participante não encontrado.');
+    }
+
+    await this.assertTransportStopValid(dto);
+    this.assertBirthDateValid(dto.birthDate);
+    await this.assertTentPurchaseTypeValid(dto);
+    await this.assertContactIsUnique(dto.email, dto.phone, dto.whatsapp, id);
+
+    const paymentProofPath = paymentProof
+      ? await storePaymentProof(paymentProof)
+      : current.paymentProofPath;
+
+    const baseAmount =
+      dto.occupationStatus === 'WORKER'
+        ? PAYMENT_AMOUNT_WORKER
+        : PAYMENT_AMOUNT_STUDENT;
+    const paymentAmount = dto.isSponsored
+      ? PAYMENT_AMOUNT_STUDENT
+      : (dto.paymentAmountPaid ?? baseAmount);
+
+    const wantsToBuyTent = dto.tentRequired && !!dto.wantsToBuyTent;
+    const wantsToBuyMattress = dto.mattressRequired && !!dto.wantsToBuyMattress;
+    const hasOwnTransport = !dto.transportRequired;
+    const hasIndividualTransport =
+      hasOwnTransport && dto.ownTransportType === 'INDIVIDUAL';
+
+    const data = {
+      fullName: dto.fullName,
+      gender: dto.gender,
+      birthDate: new Date(dto.birthDate),
+      phone: dto.phone,
+      whatsapp: dto.whatsapp,
+      email: dto.email,
+      church: dto.church,
+      isMemberTibl: dto.isMemberTibl,
+      occupationStatus: dto.occupationStatus,
+      baptized: dto.baptized,
+      allergicTo: dto.allergicTo ?? '',
+      firstTime: dto.firstTime,
+      maritalStatus: dto.maritalStatus,
+      bringingChildren: dto.bringingChildren,
+      numberOfChildren: dto.bringingChildren ? (dto.numberOfChildren ?? 0) : 0,
+      transportRequired: dto.transportRequired,
+      transportStopId: dto.transportRequired ? (dto.transportStopId ?? null) : null,
+      ownTransportType: hasOwnTransport ? (dto.ownTransportType ?? null) : null,
+      carSeats: hasIndividualTransport ? (dto.carSeats ?? null) : null,
+      carRouteStops: hasIndividualTransport ? (dto.carRouteStops ?? null) : null,
+      tentRequired: dto.tentRequired,
+      mattressRequired: dto.mattressRequired,
+      tentsCanProvide: !dto.tentRequired ? (dto.tentsCanProvide ?? 0) : 0,
+      mattressesCanProvide: !dto.mattressRequired ? (dto.mattressesCanProvide ?? 0) : 0,
+      wantsToBuyTent,
+      tentPurchaseTypeId: wantsToBuyTent ? (dto.tentPurchaseTypeId ?? null) : null,
+      tentPurchaseQuantity: wantsToBuyTent ? (dto.tentPurchaseQuantity ?? 0) : 0,
+      wantsToBuyMattress,
+      mattressPurchaseQuantity: wantsToBuyMattress ? (dto.mattressPurchaseQuantity ?? 0) : 0,
+      isSponsored: dto.isSponsored,
+      paidInHand: dto.isSponsored ? null : (dto.paidInHand ?? null),
+      paymentAmount,
+      paymentProofPath,
+      paymentStatus: dto.paymentStatus ?? current.paymentStatus,
+    };
+
+    const changes = diffFields(current, data);
+
+    if (changes.length === 0) {
+      return this.findOne(id);
+    }
+
+    let error: unknown;
+    try {
+      const [updated] = await this.prisma.$transaction([
+        this.prisma.participant.update({
+          where: { id },
+          data,
+          select: PARTICIPANT_SUMMARY_SELECT,
+        }),
+        this.prisma.participantEditLog.create({
+          data: {
+            participantId: id,
+            editedById: adminId,
+            changes: changes as unknown as Prisma.InputJsonValue,
+          },
+        }),
+      ]);
+      return updated;
+    } catch (e) {
+      error = e;
+    }
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException(
+        'Este email, telefone ou WhatsApp já está associado a outra inscrição.',
+      );
+    }
+    throw error;
+  }
+
+  async getMovementHistory(id: string) {
+    const participant = await this.prisma.participant.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true },
+    });
+    if (!participant) {
+      throw new NotFoundException('Participante não encontrado.');
+    }
+
+    const logs = await this.prisma.movementLog.findMany({
+      where: { participantId: id },
+      orderBy: { recordedAt: 'desc' },
+      include: { recordedBy: { select: { name: true } } },
+    });
+
+    return logs.map((log) => ({
+      id: log.id,
+      type: log.type,
+      recordedAt: log.recordedAt,
+      recordedByName: log.recordedBy.name,
+    }));
+  }
+
+  async getEditHistory(id: string) {
+    const participant = await this.prisma.participant.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true },
+    });
+    if (!participant) {
+      throw new NotFoundException('Participante não encontrado.');
+    }
+
+    const logs = await this.prisma.participantEditLog.findMany({
+      where: { participantId: id },
+      orderBy: { editedAt: 'desc' },
+      include: { editedBy: { select: { name: true } } },
+    });
+
+    return logs.map((log) => ({
+      id: log.id,
+      editedAt: log.editedAt,
+      editedByName: log.editedBy.name,
+      changes: log.changes as { field: string; oldValue: unknown; newValue: unknown }[],
+    }));
   }
 
   private async insertParticipant(
@@ -365,9 +553,13 @@ export class ParticipantsService {
     email: string,
     phone: string,
     whatsapp: string,
+    excludeId?: string,
   ) {
     const existing = await this.prisma.participant.findFirst({
-      where: { OR: [{ email }, { phone }, { whatsapp }] },
+      where: {
+        OR: [{ email }, { phone }, { whatsapp }],
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
       select: { email: true, phone: true, whatsapp: true },
     });
 

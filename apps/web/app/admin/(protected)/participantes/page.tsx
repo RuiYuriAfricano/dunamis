@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, XCircle, Clock, FileText, Pencil, Trash2, UserPlus } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, FileText, History, Pencil, PencilLine, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Spinner } from "@/components/ui/spinner";
+import { ParticipantHistoryDialog } from "@/components/admin/participant-history-dialog";
 import { useSession } from "@/lib/use-session";
 import { apiFetch, API_URL, paymentProofUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -723,16 +724,39 @@ export default function ParticipantsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        className="h-7 border-destructive/40 px-2 text-destructive hover:bg-destructive/10"
-                        disabled={deletingId === p.id}
-                        onClick={() => handleDelete(p)}
-                        aria-label="Eliminar inscrição"
-                      >
-                        {deletingId === p.id ? <Spinner className="size-3" /> : <Trash2 className="size-3.5" />}
-                      </Button>
+                      <div className="flex gap-1.5">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          className="h-7 px-2"
+                          nativeButton={false}
+                          render={<Link href={`/admin/participantes/${p.id}/editar`} />}
+                          aria-label="Editar inscrição"
+                        >
+                          <PencilLine className="size-3.5" />
+                        </Button>
+                        {session && (
+                          <ParticipantHistoryDialog
+                            participantId={p.id}
+                            token={session.accessToken}
+                            trigger={
+                              <Button size="xs" variant="outline" className="h-7 px-2" aria-label="Ver histórico">
+                                <History className="size-3.5" />
+                              </Button>
+                            }
+                          />
+                        )}
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          className="h-7 border-destructive/40 px-2 text-destructive hover:bg-destructive/10"
+                          disabled={deletingId === p.id}
+                          onClick={() => handleDelete(p)}
+                          aria-label="Eliminar inscrição"
+                        >
+                          {deletingId === p.id ? <Spinner className="size-3" /> : <Trash2 className="size-3.5" />}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

@@ -93,6 +93,33 @@ export class ParticipantsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
+  @Get(':id/movements')
+  getMovementHistory(@Param('id') id: string) {
+    return this.participantsService.getMovementHistory(id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get(':id/edit-history')
+  getEditHistory(@Param('id') id: string) {
+    return this.participantsService.getEditHistory(id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Patch(':id')
+  @UseInterceptors(FileInterceptor('paymentProof', paymentProofMulterOptions))
+  update(
+    @Param('id') id: string,
+    @Body() dto: CreateManualParticipantDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() paymentProof?: Express.Multer.File,
+  ) {
+    return this.participantsService.updateParticipant(id, dto, user.id, paymentProof);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @Patch(':id/payment-status')
   updatePaymentStatus(
     @Param('id') id: string,

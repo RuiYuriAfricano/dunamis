@@ -151,6 +151,23 @@ export interface RegistrationStatusSummary {
     maxRegistrations: number;
     registrationDeadline: string;
 }
+export interface MovementLogEntry {
+    id: string;
+    type: MovementType;
+    recordedAt: string;
+    recordedByName: string;
+}
+export interface ParticipantEditChange {
+    field: string;
+    oldValue: unknown;
+    newValue: unknown;
+}
+export interface ParticipantEditLogEntry {
+    id: string;
+    editedAt: string;
+    editedByName: string;
+    changes: ParticipantEditChange[];
+}
 export interface CheckInLookupResult {
     participantId: string;
     registrationNumber: string;

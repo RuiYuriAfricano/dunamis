@@ -131,6 +131,7 @@ model Participant {
   checkIn                  CheckIn?
   insideVenue              Boolean           @default(false) @map("inside_venue")
   movementLogs             MovementLog[]
+  editLogs                 ParticipantEditLog[]
   createdAt                DateTime          @default(now()) @map("created_at")
   updatedAt                DateTime          @updatedAt @map("updated_at")
 
@@ -153,6 +154,7 @@ model User {
   manualRegistrations   Participant[] @relation("ManualRegistration")
   deletedRegistrations  Participant[] @relation("DeletedRegistration")
   movementLogs          MovementLog[]
+  participantEdits      ParticipantEditLog[]
   createdAt             DateTime      @default(now()) @map("created_at")
   updatedAt             DateTime      @updatedAt @map("updated_at")
 
@@ -181,4 +183,17 @@ model MovementLog {
 
   @@index([participantId])
   @@map("movement_logs")
+}
+
+model ParticipantEditLog {
+  id            String      @id @default(cuid())
+  participantId String      @map("participant_id")
+  participant   Participant @relation(fields: [participantId], references: [id])
+  editedById    String      @map("edited_by_id")
+  editedBy      User        @relation(fields: [editedById], references: [id])
+  editedAt      DateTime    @default(now()) @map("edited_at")
+  changes       Json
+
+  @@index([participantId])
+  @@map("participant_edit_logs")
 }
