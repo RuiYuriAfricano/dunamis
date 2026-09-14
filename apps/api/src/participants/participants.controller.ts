@@ -93,6 +93,18 @@ export class ParticipantsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
+  @Get(':id/comprovativo.pdf')
+  @Header('Content-Type', 'application/pdf')
+  async downloadComprovativo(@Param('id') id: string) {
+    const { buffer, registrationNumber } =
+      await this.participantsService.generateComprovativoPdf(id);
+    return new StreamableFile(buffer, {
+      disposition: `attachment; filename="${registrationNumber}-comprovativo.pdf"`,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @Get(':id/movements')
   getMovementHistory(@Param('id') id: string) {
     return this.participantsService.getMovementHistory(id);

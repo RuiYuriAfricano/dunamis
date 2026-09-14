@@ -764,6 +764,36 @@ export class ParticipantsService {
     return participant;
   }
 
+  /**
+   * Lets an admin pull the same QR-code comprovativo that's normally emailed
+   * on confirmation — needed because several registrations were entered
+   * manually with placeholder emails that can't actually receive it.
+   */
+  async generateComprovativoPdf(id: string): Promise<{ buffer: Buffer; registrationNumber: string }> {
+    const participant = await this.prisma.participant.findFirst({
+      where: { id, deletedAt: null },
+      include: { transportStop: { select: { id: true, name: true } } },
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participante não encontrado.');
+    }
+
+    const buffer = await generateRegistrationPdf({
+      registrationNumber: participant.registrationNumber,
+      fullName: participant.fullName,
+      church: participant.church,
+      transportStopName: participant.transportStop?.name ?? null,
+      tentRequired: participant.tentRequired,
+      mattressRequired: participant.mattressRequired,
+      paymentAmount: participant.paymentAmount,
+      isSponsored: participant.isSponsored,
+      qrToken: participant.qrToken,
+    });
+
+    return { buffer, registrationNumber: participant.registrationNumber };
+  }
+
   async exportXlsx(): Promise<Buffer> {
     const participants = await this.prisma.participant.findMany({
       where: { deletedAt: null },

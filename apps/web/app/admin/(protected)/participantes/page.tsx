@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, XCircle, Clock, FileText, History, Pencil, PencilLine, Trash2, UserPlus } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Download, FileText, History, Pencil, PencilLine, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,6 +161,7 @@ export default function ParticipantsPage() {
   const [belongingsDraft, setBelongingsDraft] = useState("");
   const [savingBelongings, setSavingBelongings] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<TransportStopSummary[]>("/transport-stops").then(setStops);
@@ -285,6 +286,28 @@ export default function ParticipantsPage() {
       toast.error("Não foi possível guardar os pertences.");
     } finally {
       setSavingBelongings(false);
+    }
+  }
+
+  async function handleDownloadComprovativo(p: ParticipantSummary) {
+    if (!session) return;
+    setDownloadingId(p.id);
+    try {
+      const response = await fetch(`${API_URL}/participants/${p.id}/comprovativo.pdf`, {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+      });
+      if (!response.ok) throw new Error();
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${p.registrationNumber}-comprovativo.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Não foi possível descarregar o comprovativo.");
+    } finally {
+      setDownloadingId(null);
     }
   }
 
@@ -734,6 +757,16 @@ export default function ParticipantsPage() {
                           aria-label="Editar inscrição"
                         >
                           <PencilLine className="size-3.5" />
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          className="h-7 px-2"
+                          disabled={downloadingId === p.id}
+                          onClick={() => handleDownloadComprovativo(p)}
+                          aria-label="Baixar comprovativo"
+                        >
+                          {downloadingId === p.id ? <Spinner className="size-3" /> : <Download className="size-3.5" />}
                         </Button>
                         {session && (
                           <ParticipantHistoryDialog
