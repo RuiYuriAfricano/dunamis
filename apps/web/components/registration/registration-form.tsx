@@ -25,12 +25,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Stepper } from "@/components/registration/stepper";
 import { FileUpload } from "@/components/registration/file-upload";
 import { apiFetch, ApiError } from "@/lib/api";
-import {
-  EVENT_IBAN,
-  EVENT_IBAN_HOLDER,
-  PAYMENT_AMOUNT_STUDENT,
-  PAYMENT_AMOUNT_WORKER,
-} from "@/lib/event";
+import { EVENT_IBAN, EVENT_IBAN_HOLDER } from "@/lib/event";
 import { formatAngolaPhone, stripPhoneMask } from "@/lib/masks";
 import type { ParticipantConfirmation, TentTypeSummary, TransportStopSummary } from "@dunamis/types";
 
@@ -131,9 +126,11 @@ const STEPS: { label: string; fields: Path<FormValues>[] }[] = [
 export function RegistrationForm({
   stops,
   tentTypes,
+  pricing,
 }: {
   stops: TransportStopSummary[];
   tentTypes: TentTypeSummary[];
+  pricing: { student: number; worker: number };
 }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -200,7 +197,7 @@ export function RegistrationForm({
   }, [isMemberTibl, setValue]);
 
   const occupationStatus = watch("occupationStatus");
-  const totalAmount = occupationStatus === "WORKER" ? PAYMENT_AMOUNT_WORKER : PAYMENT_AMOUNT_STUDENT;
+  const totalAmount = occupationStatus === "WORKER" ? pricing.worker : pricing.student;
 
   async function goNext() {
     let valid = await trigger(STEPS[step].fields);

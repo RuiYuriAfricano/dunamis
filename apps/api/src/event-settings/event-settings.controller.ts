@@ -28,6 +28,9 @@ export class EventSettingsController {
         ? new Date(dto.registrationDeadline)
         : undefined,
       maxRegistrations: dto.maxRegistrations,
+      paymentAmountStudent: dto.paymentAmountStudent,
+      paymentAmountWorker: dto.paymentAmountWorker,
+      paymentAmountSponsored: dto.paymentAmountSponsored,
     });
   }
 }

@@ -142,6 +142,9 @@ export interface DashboardStats {
 export interface EventSettingsSummary {
     registrationDeadline: string;
     maxRegistrations: number;
+    paymentAmountStudent: number;
+    paymentAmountWorker: number;
+    paymentAmountSponsored: number;
 }
 export interface RegistrationStatusSummary {
     open: boolean;

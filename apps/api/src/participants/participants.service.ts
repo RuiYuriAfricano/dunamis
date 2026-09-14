@@ -20,12 +20,6 @@ import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 import { storePaymentProof } from './payment-proof-storage';
 import { generateRegistrationPdf } from './registration-pdf';
 
-const PAYMENT_AMOUNT_STUDENT = 15000;
-const PAYMENT_AMOUNT_WORKER = 20000;
-// Fixed regardless of student/worker pricing — the sponsorship always covers
-// this flat amount, independent of whatever the standard fee is right now.
-const PAYMENT_AMOUNT_SPONSORED = 5000;
-
 // How often the organisers get a milestone email with the latest sign-ups —
 // keeps Brevo's free-tier daily send limit safe under a heavy registration
 // day instead of firing one notification per registration.
@@ -247,12 +241,13 @@ export class ParticipantsService {
       ? await storePaymentProof(paymentProof)
       : current.paymentProofPath;
 
+    const pricing = await this.eventSettings.get();
     const baseAmount =
       dto.occupationStatus === 'WORKER'
-        ? PAYMENT_AMOUNT_WORKER
-        : PAYMENT_AMOUNT_STUDENT;
+        ? pricing.paymentAmountWorker
+        : pricing.paymentAmountStudent;
     const paymentAmount = dto.isSponsored
-      ? PAYMENT_AMOUNT_SPONSORED
+      ? pricing.paymentAmountSponsored
       : (dto.paymentAmountPaid ?? baseAmount);
 
     const wantsToBuyTent = dto.tentRequired && !!dto.wantsToBuyTent;
@@ -394,6 +389,7 @@ export class ParticipantsService {
       paymentReviewedAt?: Date | null;
     },
   ): Promise<ParticipantWithTransportStop> {
+    const pricing = await this.eventSettings.get();
     try {
       return await this.prisma.$transaction(async (tx) => {
         const [{ value }] = await tx.$queryRaw<
@@ -404,14 +400,14 @@ export class ParticipantsService {
         const qrToken = nanoid(24);
         const baseAmount =
           dto.occupationStatus === 'WORKER'
-            ? PAYMENT_AMOUNT_WORKER
-            : PAYMENT_AMOUNT_STUDENT;
+            ? pricing.paymentAmountWorker
+            : pricing.paymentAmountStudent;
         // Sponsored participants don't pay themselves, but the sponsorship
-        // still represents a fixed amount being covered on their behalf —
-        // 5.000 Kz regardless of the current student/worker fee — so it's
-        // recorded as that, not 0, to match revenue reporting.
+        // still represents a fixed amount being covered on their behalf,
+        // independent of the current student/worker fee — so it's recorded
+        // as that, not 0, to match revenue reporting.
         const paymentAmount = dto.isSponsored
-          ? PAYMENT_AMOUNT_SPONSORED
+          ? pricing.paymentAmountSponsored
           : (extra.paymentAmountOverride ?? baseAmount);
 
         const wantsToBuyTent = dto.tentRequired && !!dto.wantsToBuyTent;

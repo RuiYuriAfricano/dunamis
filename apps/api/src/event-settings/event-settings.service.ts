@@ -8,6 +8,17 @@ const SETTINGS_ID = 1;
 // admin-set value in the database is always the source of truth.
 const DEFAULT_REGISTRATION_DEADLINE = new Date('2026-09-13T23:59:59+01:00');
 const DEFAULT_MAX_REGISTRATIONS = 2000;
+const DEFAULT_PAYMENT_AMOUNT_STUDENT = 15000;
+const DEFAULT_PAYMENT_AMOUNT_WORKER = 20000;
+const DEFAULT_PAYMENT_AMOUNT_SPONSORED = 5000;
+
+interface EventSettingsUpdate {
+  registrationDeadline?: Date;
+  maxRegistrations?: number;
+  paymentAmountStudent?: number;
+  paymentAmountWorker?: number;
+  paymentAmountSponsored?: number;
+}
 
 @Injectable()
 export class EventSettingsService {
@@ -24,11 +35,14 @@ export class EventSettingsService {
         id: SETTINGS_ID,
         registrationDeadline: DEFAULT_REGISTRATION_DEADLINE,
         maxRegistrations: DEFAULT_MAX_REGISTRATIONS,
+        paymentAmountStudent: DEFAULT_PAYMENT_AMOUNT_STUDENT,
+        paymentAmountWorker: DEFAULT_PAYMENT_AMOUNT_WORKER,
+        paymentAmountSponsored: DEFAULT_PAYMENT_AMOUNT_SPONSORED,
       },
     });
   }
 
-  async update(data: { registrationDeadline?: Date; maxRegistrations?: number }) {
+  async update(data: EventSettingsUpdate) {
     return this.prisma.eventSettings.upsert({
       where: { id: SETTINGS_ID },
       update: data,
@@ -36,6 +50,9 @@ export class EventSettingsService {
         id: SETTINGS_ID,
         registrationDeadline: data.registrationDeadline ?? DEFAULT_REGISTRATION_DEADLINE,
         maxRegistrations: data.maxRegistrations ?? DEFAULT_MAX_REGISTRATIONS,
+        paymentAmountStudent: data.paymentAmountStudent ?? DEFAULT_PAYMENT_AMOUNT_STUDENT,
+        paymentAmountWorker: data.paymentAmountWorker ?? DEFAULT_PAYMENT_AMOUNT_WORKER,
+        paymentAmountSponsored: data.paymentAmountSponsored ?? DEFAULT_PAYMENT_AMOUNT_SPONSORED,
       },
     });
   }
