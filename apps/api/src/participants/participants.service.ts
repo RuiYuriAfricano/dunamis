@@ -215,8 +215,12 @@ export class ParticipantsService {
           dto.occupationStatus === 'WORKER'
             ? PAYMENT_AMOUNT_WORKER
             : PAYMENT_AMOUNT_STUDENT;
+        // Sponsored participants don't pay themselves, but the sponsorship
+        // still represents the standard fee being covered on their behalf —
+        // so it's recorded as the real amount (5.000 Kz), not 0, to match
+        // revenue reporting.
         const paymentAmount = dto.isSponsored
-          ? 0
+          ? PAYMENT_AMOUNT_STUDENT
           : (extra.paymentAmountOverride ?? baseAmount);
 
         const wantsToBuyTent = dto.tentRequired && !!dto.wantsToBuyTent;

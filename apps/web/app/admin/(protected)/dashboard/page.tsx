@@ -40,6 +40,7 @@ const STAT_CARDS: { key: keyof DashboardStats; label: string }[] = [
   { key: "totalCheckedIn", label: "Já fizeram check-in" },
   { key: "totalWorkers", label: "Trabalhadores" },
   { key: "totalBaptized", label: "Baptizados" },
+  { key: "totalChildren", label: "Filhos a levar" },
 ];
 
 function formatDay(isoDate: string) {

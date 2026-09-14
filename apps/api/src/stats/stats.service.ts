@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const AGE_GROUPS: { label: string; min: number; max: number }[] = [
@@ -9,6 +10,10 @@ const AGE_GROUPS: { label: string; min: number; max: number }[] = [
   { label: '36-50', min: 36, max: 50 },
   { label: '51+', min: 51, max: Infinity },
 ];
+
+// Every aggregate/chart below is scoped to non-deleted participants — a
+// soft-deleted registration shouldn't still show up in the dashboard totals.
+const NOT_DELETED = { deletedAt: null } satisfies Prisma.ParticipantWhereInput;
 
 function calculateAge(birthDate: Date, now: Date): number {
   let age = now.getFullYear() - birthDate.getFullYear();
@@ -40,6 +45,7 @@ export class StatsService {
       totalBaptized,
       totalTaxi,
       totalOwnCar,
+      children,
       stops,
       birthDates,
       registrationDates,
@@ -52,34 +58,38 @@ export class StatsService {
       myDeletions,
       myCheckIns,
     ] = await Promise.all([
-      this.prisma.participant.count(),
-      this.prisma.participant.count({ where: { gender: 'MALE' } }),
-      this.prisma.participant.count({ where: { gender: 'FEMALE' } }),
-      this.prisma.participant.count({ where: { firstTime: true } }),
-      this.prisma.participant.count({ where: { transportRequired: true } }),
-      this.prisma.participant.count({ where: { tentRequired: true } }),
-      this.prisma.participant.count({ where: { mattressRequired: true } }),
-      this.prisma.participant.count({ where: { checkedIn: true } }),
-      this.prisma.participant.count({ where: { occupationStatus: 'WORKER' } }),
-      this.prisma.participant.count({ where: { baptized: true } }),
-      this.prisma.participant.count({ where: { ownTransportType: 'TAXI' } }),
-      this.prisma.participant.count({ where: { ownTransportType: 'INDIVIDUAL' } }),
+      this.prisma.participant.count({ where: NOT_DELETED }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, gender: 'MALE' } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, gender: 'FEMALE' } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, firstTime: true } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, transportRequired: true } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, tentRequired: true } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, mattressRequired: true } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, checkedIn: true } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, occupationStatus: 'WORKER' } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, baptized: true } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, ownTransportType: 'TAXI' } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, ownTransportType: 'INDIVIDUAL' } }),
+      this.prisma.participant.aggregate({
+        where: { ...NOT_DELETED, bringingChildren: true },
+        _sum: { numberOfChildren: true },
+      }),
       this.prisma.transportStop.findMany({
         where: { active: true },
         orderBy: { name: 'asc' },
         select: {
           name: true,
-          _count: { select: { participants: true } },
+          _count: { select: { participants: { where: NOT_DELETED } } },
         },
       }),
-      this.prisma.participant.findMany({ select: { birthDate: true } }),
-      this.prisma.participant.findMany({ select: { createdAt: true } }),
+      this.prisma.participant.findMany({ where: NOT_DELETED, select: { birthDate: true } }),
+      this.prisma.participant.findMany({ where: NOT_DELETED, select: { createdAt: true } }),
       this.prisma.participant.aggregate({
-        where: { paymentStatus: 'CONFIRMED' },
+        where: { ...NOT_DELETED, paymentStatus: 'CONFIRMED' },
         _sum: { paymentAmount: true },
       }),
-      this.prisma.participant.count({ where: { wantsToBuyTent: true } }),
-      this.prisma.participant.count({ where: { wantsToBuyMattress: true } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, wantsToBuyTent: true } }),
+      this.prisma.participant.count({ where: { ...NOT_DELETED, wantsToBuyMattress: true } }),
       this.prisma.participant.count({
         where: { paymentReviewedById: userId, paymentStatus: 'CONFIRMED' },
       }),
@@ -132,6 +142,7 @@ export class StatsService {
       totalBaptized,
       totalTaxi,
       totalOwnCar,
+      totalChildren: children._sum.numberOfChildren ?? 0,
       totalRevenueKz: revenue._sum.paymentAmount ?? 0,
       totalPeopleBuyingTent: peopleBuyingTent,
       totalPeopleBuyingMattress: peopleBuyingMattress,
