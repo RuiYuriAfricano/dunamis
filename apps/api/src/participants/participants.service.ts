@@ -22,6 +22,9 @@ import { generateRegistrationPdf } from './registration-pdf';
 
 const PAYMENT_AMOUNT_STUDENT = 15000;
 const PAYMENT_AMOUNT_WORKER = 20000;
+// Fixed regardless of student/worker pricing — the sponsorship always covers
+// this flat amount, independent of whatever the standard fee is right now.
+const PAYMENT_AMOUNT_SPONSORED = 5000;
 
 // How often the organisers get a milestone email with the latest sign-ups —
 // keeps Brevo's free-tier daily send limit safe under a heavy registration
@@ -249,7 +252,7 @@ export class ParticipantsService {
         ? PAYMENT_AMOUNT_WORKER
         : PAYMENT_AMOUNT_STUDENT;
     const paymentAmount = dto.isSponsored
-      ? PAYMENT_AMOUNT_STUDENT
+      ? PAYMENT_AMOUNT_SPONSORED
       : (dto.paymentAmountPaid ?? baseAmount);
 
     const wantsToBuyTent = dto.tentRequired && !!dto.wantsToBuyTent;
@@ -404,11 +407,11 @@ export class ParticipantsService {
             ? PAYMENT_AMOUNT_WORKER
             : PAYMENT_AMOUNT_STUDENT;
         // Sponsored participants don't pay themselves, but the sponsorship
-        // still represents the standard fee being covered on their behalf —
-        // so it's recorded as the real amount (5.000 Kz), not 0, to match
-        // revenue reporting.
+        // still represents a fixed amount being covered on their behalf —
+        // 5.000 Kz regardless of the current student/worker fee — so it's
+        // recorded as that, not 0, to match revenue reporting.
         const paymentAmount = dto.isSponsored
-          ? PAYMENT_AMOUNT_STUDENT
+          ? PAYMENT_AMOUNT_SPONSORED
           : (extra.paymentAmountOverride ?? baseAmount);
 
         const wantsToBuyTent = dto.tentRequired && !!dto.wantsToBuyTent;
