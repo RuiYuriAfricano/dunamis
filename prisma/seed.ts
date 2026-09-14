@@ -37,6 +37,12 @@ const TEAM_ADMINS = [
   { name: "Abrãao Marcos", email: "abraao.marcos@dunamis.ao" },
   { name: "Silas Chama", email: "silas.chama@dunamis.ao" },
   { name: "Marco", email: "marco@dunamis.ao" },
+  // Generic check-in/event-day accounts — full admin access, same shared
+  // password as the rest of the team.
+  ...Array.from({ length: 6 }, (_, i) => ({
+    name: `Operador ${i + 1}`,
+    email: `operador${i + 1}@dunamis.ao`,
+  })),
 ];
 
 // One-time renames for stops that already exist under an old name — applied
