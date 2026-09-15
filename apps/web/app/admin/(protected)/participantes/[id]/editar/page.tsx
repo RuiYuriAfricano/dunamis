@@ -401,6 +401,10 @@ export default function EditParticipantPage() {
 
   if (!session) return null;
 
+  if (session.role !== "ADMIN") {
+    return <p className="text-sm text-muted-foreground">Não tem permissão para aceder a esta página.</p>;
+  }
+
   if (loadError) {
     return (
       <div className="animate-in fade-in mx-auto max-w-lg space-y-4 py-16 text-center duration-500">

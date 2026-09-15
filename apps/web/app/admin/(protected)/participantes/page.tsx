@@ -333,6 +333,7 @@ export default function ParticipantsPage() {
   }
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
+  const canEdit = session?.role === "ADMIN";
 
   return (
     <div className="animate-in fade-in space-y-6 duration-500">
@@ -342,15 +343,17 @@ export default function ParticipantsPage() {
           <p className="text-sm text-muted-foreground">{data ? `${data.total} inscrito(s)` : "A carregar..."}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            nativeButton={false}
-            render={<Link href="/admin/participantes/novo" />}
-          >
-            <UserPlus className="size-4" />
-            Registar manualmente
-          </Button>
+          {canEdit && (
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              nativeButton={false}
+              render={<Link href="/admin/participantes/novo" />}
+            >
+              <UserPlus className="size-4" />
+              Registar manualmente
+            </Button>
+          )}
           <Button className="w-full sm:w-auto" onClick={handleExport} disabled={exporting}>
             {exporting && <Spinner />}
             {exporting ? "A exportar..." : "Exportar Excel"}
@@ -663,7 +666,7 @@ export default function ParticipantsPage() {
                             {p.isSponsored ? "Sem comprovativo (patrocinado)" : "Sem comprovativo"}
                           </span>
                         )}
-                        {p.paymentStatus === PaymentStatus.PENDING && (
+                        {canEdit && p.paymentStatus === PaymentStatus.PENDING && (
                           <div className="flex gap-1.5 pt-0.5">
                             <Button
                               size="xs"
@@ -735,29 +738,33 @@ export default function ParticipantsPage() {
                       ) : (
                         <div className="flex items-start justify-between gap-2">
                           <span className="text-muted-foreground">{p.belongings || "Sem pertences registados"}</span>
-                          <button
-                            type="button"
-                            onClick={() => startEditingBelongings(p)}
-                            className="shrink-0 text-muted-foreground hover:text-primary"
-                            aria-label="Editar pertences"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => startEditingBelongings(p)}
+                              className="shrink-0 text-muted-foreground hover:text-primary"
+                              aria-label="Editar pertences"
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1.5">
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          className="h-7 px-2"
-                          nativeButton={false}
-                          render={<Link href={`/admin/participantes/${p.id}/editar`} />}
-                          aria-label="Editar inscrição"
-                        >
-                          <PencilLine className="size-3.5" />
-                        </Button>
+                        {canEdit && (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            className="h-7 px-2"
+                            nativeButton={false}
+                            render={<Link href={`/admin/participantes/${p.id}/editar`} />}
+                            aria-label="Editar inscrição"
+                          >
+                            <PencilLine className="size-3.5" />
+                          </Button>
+                        )}
                         <Button
                           size="xs"
                           variant="outline"
@@ -779,16 +786,18 @@ export default function ParticipantsPage() {
                             }
                           />
                         )}
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          className="h-7 border-destructive/40 px-2 text-destructive hover:bg-destructive/10"
-                          disabled={deletingId === p.id}
-                          onClick={() => handleDelete(p)}
-                          aria-label="Eliminar inscrição"
-                        >
-                          {deletingId === p.id ? <Spinner className="size-3" /> : <Trash2 className="size-3.5" />}
-                        </Button>
+                        {canEdit && (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            className="h-7 border-destructive/40 px-2 text-destructive hover:bg-destructive/10"
+                            disabled={deletingId === p.id}
+                            onClick={() => handleDelete(p)}
+                            aria-label="Eliminar inscrição"
+                          >
+                            {deletingId === p.id ? <Spinner className="size-3" /> : <Trash2 className="size-3.5" />}
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

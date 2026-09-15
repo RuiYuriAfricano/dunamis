@@ -377,6 +377,10 @@ export default function ManualRegistrationPage() {
 
   if (!session) return null;
 
+  if (session.role !== "ADMIN") {
+    return <p className="text-sm text-muted-foreground">Não tem permissão para aceder a esta página.</p>;
+  }
+
   return (
     <div className="animate-in fade-in mx-auto max-w-2xl space-y-6 duration-500">
       <div>

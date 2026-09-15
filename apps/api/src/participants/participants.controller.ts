@@ -62,7 +62,7 @@ export class ParticipantsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'OPERATOR')
   @Get('export.xlsx')
   @Header(
     'Content-Type',
@@ -78,21 +78,21 @@ export class ParticipantsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'OPERATOR')
   @Get()
   findAll(@Query() query: QueryParticipantsDto) {
     return this.participantsService.findAll(query);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'OPERATOR')
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.participantsService.findOne(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'OPERATOR')
   @Get(':id/comprovativo.pdf')
   @Header('Content-Type', 'application/pdf')
   async downloadComprovativo(@Param('id') id: string) {
@@ -104,14 +104,14 @@ export class ParticipantsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'OPERATOR')
   @Get(':id/movements')
   getMovementHistory(@Param('id') id: string) {
     return this.participantsService.getMovementHistory(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'OPERATOR')
   @Get(':id/edit-history')
   getEditHistory(@Param('id') id: string) {
     return this.participantsService.getEditHistory(id);
