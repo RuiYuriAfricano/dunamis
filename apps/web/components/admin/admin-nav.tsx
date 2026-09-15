@@ -22,7 +22,14 @@ export function AdminNav() {
   const router = useRouter();
   const session = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
-  const links = session?.role === "ADMIN" ? [...LINKS, ...ADMIN_ONLY_LINKS] : LINKS;
+  const links =
+    session?.role === "ADMIN"
+      ? [
+          ...LINKS,
+          ...ADMIN_ONLY_LINKS,
+          ...(session.canManageUsers ? [{ href: "/admin/utilizadores", label: "Utilizadores" }] : []),
+        ]
+      : LINKS;
 
   function logout() {
     setMenuOpen(false);

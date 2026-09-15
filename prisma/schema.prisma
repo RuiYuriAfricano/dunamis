@@ -151,6 +151,11 @@ model User {
   email                 String        @unique
   passwordHash          String        @map("password_hash")
   role                  Role
+  // Separate from `role` — a fixed, manually-granted permission (not
+  // settable through the users-management API) letting this account create
+  // and manage other admin/operator accounts. Everyone else, admins
+  // included, keeps their current access without this.
+  canManageUsers        Boolean       @default(false) @map("can_manage_users")
   checkIns              CheckIn[]
   checkedInParticipants Participant[] @relation("CheckInOperator")
   paymentReviews        Participant[] @relation("PaymentReviewer")

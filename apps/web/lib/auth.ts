@@ -5,6 +5,7 @@ export interface Session {
   name: string;
   email: string;
   role: "ADMIN" | "OPERATOR";
+  canManageUsers: boolean;
 }
 
 export function setSession(session: Session) {

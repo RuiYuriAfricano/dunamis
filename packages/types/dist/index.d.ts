@@ -6,6 +6,14 @@ export declare enum Role {
     ADMIN = "ADMIN",
     OPERATOR = "OPERATOR"
 }
+export interface UserSummary {
+    id: string;
+    name: string;
+    email: string;
+    role: Role;
+    canManageUsers: boolean;
+    createdAt: string;
+}
 export declare enum PaymentStatus {
     PENDING = "PENDING",
     CONFIRMED = "CONFIRMED",

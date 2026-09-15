@@ -11,6 +11,7 @@ import { TentTypesModule } from './tent-types/tent-types.module';
 import { CheckInModule } from './check-in/check-in.module';
 import { StatsModule } from './stats/stats.module';
 import { EventSettingsModule } from './event-settings/event-settings.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { EventSettingsModule } from './event-settings/event-settings.module';
     CheckInModule,
     StatsModule,
     EventSettingsModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

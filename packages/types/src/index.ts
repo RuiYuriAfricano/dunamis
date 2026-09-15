@@ -8,6 +8,15 @@ export enum Role {
   OPERATOR = "OPERATOR",
 }
 
+export interface UserSummary {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  canManageUsers: boolean;
+  createdAt: string;
+}
+
 export enum PaymentStatus {
   PENDING = "PENDING",
   CONFIRMED = "CONFIRMED",
