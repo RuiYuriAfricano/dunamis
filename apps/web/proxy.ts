@@ -13,6 +13,14 @@ function readSession(request: NextRequest): Session | null {
   }
 }
 
+function isAdminOnlyPath(pathname: string) {
+  if (pathname.startsWith("/admin/configuracoes")) return true;
+  if (pathname.startsWith("/admin/utilizadores")) return true;
+  if (pathname.startsWith("/admin/participantes/novo")) return true;
+  if (/^\/admin\/participantes\/[^/]+\/editar/.test(pathname)) return true;
+  return false;
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -26,8 +34,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin/login", request.url));
   }
 
-  if (pathname.startsWith("/admin") && session.role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/check-in", request.url));
+  if (session.role !== "ADMIN" && isAdminOnlyPath(pathname)) {
+    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
   return NextResponse.next();
