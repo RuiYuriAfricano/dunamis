@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   UseInterceptors,
   UploadedFile,
@@ -16,7 +17,9 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { ParticipantsService } from './participants.service';
+import type { ExportFilter } from './participants.service';
 import { CreateParticipantDto } from './dto/create-participant.dto';
 import { CreateManualParticipantDto } from './dto/create-manual-participant.dto';
 import { LookupParticipantDto } from './dto/lookup-participant.dto';
@@ -68,12 +71,19 @@ export class ParticipantsController {
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   )
-  @Header(
-    'Content-Disposition',
-    'attachment; filename="dunamis-participantes.xlsx"',
-  )
-  async exportXlsx() {
-    const buffer = await this.participantsService.exportXlsx();
+  async exportXlsx(
+    @Query('filter') filter: ExportFilter | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const filenames: Record<ExportFilter, string> = {
+      pending: 'dunamis-pagamentos-pendentes.xlsx',
+      'sponsored-valued': 'dunamis-patrocinios-com-valor.xlsx',
+      'sponsored-guests': 'dunamis-convidados.xlsx',
+    };
+    const filename = filter ? filenames[filter] : 'dunamis-participantes.xlsx';
+    res.set('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const buffer = await this.participantsService.exportXlsx(filter);
     return new StreamableFile(buffer);
   }
 

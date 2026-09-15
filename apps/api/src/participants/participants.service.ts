@@ -25,6 +25,8 @@ import { generateRegistrationPdf } from './registration-pdf';
 // day instead of firing one notification per registration.
 const REGISTRATION_BATCH_SIZE = 10;
 
+export type ExportFilter = 'pending' | 'sponsored-valued' | 'sponsored-guests';
+
 const PAYMENT_STATUS_LABELS: Record<
   'PENDING' | 'CONFIRMED' | 'REJECTED',
   string
@@ -794,9 +796,20 @@ export class ParticipantsService {
     return { buffer, registrationNumber: participant.registrationNumber };
   }
 
-  async exportXlsx(): Promise<Buffer> {
+  async exportXlsx(filter?: ExportFilter): Promise<Buffer> {
+    const where: Prisma.ParticipantWhereInput = { deletedAt: null };
+    if (filter === 'pending') {
+      where.paymentStatus = 'PENDING';
+    } else if (filter === 'sponsored-valued') {
+      where.isSponsored = true;
+      where.paymentAmount = { gt: 0 };
+    } else if (filter === 'sponsored-guests') {
+      where.isSponsored = true;
+      where.paymentAmount = 0;
+    }
+
     const participants = await this.prisma.participant.findMany({
-      where: { deletedAt: null },
+      where,
       select: PARTICIPANT_SUMMARY_SELECT,
       orderBy: { createdAt: 'asc' },
     });

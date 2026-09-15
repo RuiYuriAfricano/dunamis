@@ -50,6 +50,15 @@ const TRI_STATE_OPTIONS = [
   { value: "false", label: "Não" },
 ];
 
+type ExportFilter = "all" | "pending" | "sponsored-valued" | "sponsored-guests";
+
+const EXPORT_FILTER_OPTIONS: { value: ExportFilter; label: string }[] = [
+  { value: "all", label: "Todos os inscritos" },
+  { value: "pending", label: "Pagamentos pendentes" },
+  { value: "sponsored-valued", label: "Patrocínios com valor" },
+  { value: "sponsored-guests", label: "Convidados (patrocínio sem valor)" },
+];
+
 const PAYMENT_STATUS_OPTIONS = [
   { value: "all", label: "Todos" },
   { value: PaymentStatus.PENDING, label: "Pendente" },
@@ -153,6 +162,7 @@ export default function ParticipantsPage() {
   const [data, setData] = useState<{ data: ParticipantSummary[]; total: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportFilter, setExportFilter] = useState<ExportFilter>("all");
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [rejectingParticipant, setRejectingParticipant] = useState<ParticipantSummary | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -215,14 +225,21 @@ export default function ParticipantsPage() {
     if (!session) return;
     setExporting(true);
     try {
-      const response = await fetch(`${API_URL}/participants/export.xlsx`, {
+      const query = exportFilter === "all" ? "" : `?filter=${exportFilter}`;
+      const response = await fetch(`${API_URL}/participants/export.xlsx${query}`, {
         headers: { Authorization: `Bearer ${session.accessToken}` },
       });
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "dunamis-inscritos.xlsx";
+      const filenames: Record<ExportFilter, string> = {
+        all: "dunamis-inscritos.xlsx",
+        pending: "dunamis-pagamentos-pendentes.xlsx",
+        "sponsored-valued": "dunamis-patrocinios-com-valor.xlsx",
+        "sponsored-guests": "dunamis-convidados.xlsx",
+      };
+      link.download = filenames[exportFilter];
       link.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -354,6 +371,18 @@ export default function ParticipantsPage() {
               Registar manualmente
             </Button>
           )}
+          <Select value={exportFilter} onValueChange={(v) => setExportFilter(v as ExportFilter)}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {EXPORT_FILTER_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button className="w-full sm:w-auto" onClick={handleExport} disabled={exporting}>
             {exporting && <Spinner />}
             {exporting ? "A exportar..." : "Exportar Excel"}
