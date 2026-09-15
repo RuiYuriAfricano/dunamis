@@ -877,16 +877,18 @@ export default function ParticipantsPage() {
                             <PencilLine className="size-3.5" />
                           </Button>
                         )}
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          className="h-7 px-2"
-                          disabled={downloadingId === p.id}
-                          onClick={() => handleDownloadComprovativo(p)}
-                          aria-label="Baixar comprovativo"
-                        >
-                          {downloadingId === p.id ? <Spinner className="size-3" /> : <Download className="size-3.5" />}
-                        </Button>
+                        {p.paymentStatus === PaymentStatus.CONFIRMED && (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            className="h-7 px-2"
+                            disabled={downloadingId === p.id}
+                            onClick={() => handleDownloadComprovativo(p)}
+                            aria-label="Baixar comprovativo"
+                          >
+                            {downloadingId === p.id ? <Spinner className="size-3" /> : <Download className="size-3.5" />}
+                          </Button>
+                        )}
                         {session && (
                           <ParticipantHistoryDialog
                             participantId={p.id}
