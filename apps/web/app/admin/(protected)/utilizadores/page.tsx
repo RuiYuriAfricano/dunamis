@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Pencil, Trash2, UserCog, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ interface FormState {
 }
 
 const EMPTY_FORM: FormState = { name: "", email: "", password: "", role: Role.OPERATOR };
+const PAGE_SIZE = 10;
 
 export default function UsersPage() {
   const session = useSession();
@@ -55,8 +56,26 @@ export default function UsersPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   const canManageUsers = session?.canManageUsers === true;
+
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    const term = search.trim().toLowerCase();
+    if (!term) return users;
+    return users.filter(
+      (u) => u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term),
+    );
+  }, [users, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const pagedUsers = filteredUsers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   useEffect(() => {
     if (!session || !canManageUsers) return;
@@ -179,6 +198,16 @@ export default function UsersPage() {
         </Button>
       </div>
 
+      <Input
+        placeholder="Pesquisar por nome ou email"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
+        className="max-w-sm"
+      />
+
       <div className="overflow-x-auto rounded-xl border shadow-sm">
         <Table>
           <TableHeader>
@@ -190,7 +219,14 @@ export default function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users?.map((user) => (
+            {users && pagedUsers.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                  Nenhum utilizador encontrado.
+                </TableCell>
+              </TableRow>
+            )}
+            {pagedUsers.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">
                   {user.name}
@@ -227,6 +263,21 @@ export default function UsersPage() {
             ))}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span>{filteredUsers.length} conta(s)</span>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            Anterior
+          </Button>
+          <span>
+            Página {page} de {totalPages}
+          </span>
+          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+            Seguinte
+          </Button>
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
