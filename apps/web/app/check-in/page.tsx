@@ -1,9 +1,6 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { CheckCircle2, AlertTriangle, XCircle, ScanLine, Backpack, LogIn, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,9 +10,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { PageLoading } from "@/components/ui/page-loading";
 import { QrScanner } from "@/components/check-in/qr-scanner";
+import { AdminNav } from "@/components/admin/admin-nav";
 import { useSession } from "@/lib/use-session";
 import { apiFetch, ApiError } from "@/lib/api";
-import { clearSession } from "@/lib/auth";
 import type { Session } from "@/lib/auth";
 import { MovementType, type CheckInLookupResult } from "@dunamis/types";
 
@@ -28,7 +25,6 @@ type ViewState =
   | { status: "error"; message: string };
 
 export default function CheckInPage() {
-  const router = useRouter();
   const session = useSession();
   const [state, setState] = useState<ViewState>({ status: "scanning" });
   const [confirming, setConfirming] = useState(false);
@@ -86,32 +82,7 @@ export default function CheckInPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-dunamis-green/5 via-background to-background">
-      <header className="flex items-center justify-between bg-dunamis-green px-6 py-3 text-dunamis-green-foreground">
-        <div className="flex items-center gap-2.5">
-          <Image src="/logo-dunamis-new.png" alt="DUNAMIS" width={621} height={278} className="h-7 w-auto" />
-          <span className="h-5 w-px bg-white/20" aria-hidden />
-          <span className="text-sm font-medium text-dunamis-green-foreground/80">Check-in</span>
-        </div>
-        <div className="flex items-center gap-3 text-sm text-dunamis-green-foreground/80">
-          <span className="hidden sm:inline">{session.name}</span>
-          {session.role === "ADMIN" && (
-            <Link href="/admin/dashboard" className="underline underline-offset-2 hover:text-dunamis-green-foreground">
-              Dashboard
-            </Link>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-white/20 bg-transparent text-dunamis-green-foreground hover:bg-white/10 hover:text-dunamis-green-foreground"
-            onClick={() => {
-              clearSession();
-              router.push("/admin/login");
-            }}
-          >
-            Sair
-          </Button>
-        </div>
-      </header>
+      <AdminNav />
 
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 px-6 py-10">
         {state.status === "scanning" && (
