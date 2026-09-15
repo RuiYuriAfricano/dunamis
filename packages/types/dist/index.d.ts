@@ -136,6 +136,9 @@ export interface DashboardStats {
     totalOwnCar: number;
     totalChildren: number;
     totalRevenueKz: number;
+    totalSponsoredWithValue: number;
+    totalSponsoredGuests: number;
+    totalSponsorshipRevenueKz: number;
     totalPeopleBuyingTent: number;
     totalPeopleBuyingMattress: number;
     myValidations: number;

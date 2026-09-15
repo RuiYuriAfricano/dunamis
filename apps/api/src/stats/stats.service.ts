@@ -50,6 +50,9 @@ export class StatsService {
       birthDates,
       registrationDates,
       revenue,
+      totalSponsoredWithValue,
+      totalSponsoredGuests,
+      sponsorshipRevenue,
       peopleBuyingTent,
       peopleBuyingMattress,
       myValidations,
@@ -86,6 +89,26 @@ export class StatsService {
       this.prisma.participant.findMany({ where: NOT_DELETED, select: { createdAt: true } }),
       this.prisma.participant.aggregate({
         where: { ...NOT_DELETED, paymentStatus: 'CONFIRMED' },
+        _sum: { paymentAmount: true },
+      }),
+      this.prisma.participant.count({
+        where: {
+          ...NOT_DELETED,
+          isSponsored: true,
+          paymentStatus: 'CONFIRMED',
+          paymentAmount: { gt: 0 },
+        },
+      }),
+      this.prisma.participant.count({
+        where: {
+          ...NOT_DELETED,
+          isSponsored: true,
+          paymentStatus: 'CONFIRMED',
+          paymentAmount: 0,
+        },
+      }),
+      this.prisma.participant.aggregate({
+        where: { ...NOT_DELETED, isSponsored: true, paymentStatus: 'CONFIRMED' },
         _sum: { paymentAmount: true },
       }),
       this.prisma.participant.count({ where: { ...NOT_DELETED, wantsToBuyTent: true } }),
@@ -144,6 +167,9 @@ export class StatsService {
       totalOwnCar,
       totalChildren: children._sum.numberOfChildren ?? 0,
       totalRevenueKz: revenue._sum.paymentAmount ?? 0,
+      totalSponsoredWithValue,
+      totalSponsoredGuests,
+      totalSponsorshipRevenueKz: sponsorshipRevenue._sum.paymentAmount ?? 0,
       totalPeopleBuyingTent: peopleBuyingTent,
       totalPeopleBuyingMattress: peopleBuyingMattress,
       myValidations,

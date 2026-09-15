@@ -41,6 +41,8 @@ const STAT_CARDS: { key: keyof DashboardStats; label: string }[] = [
   { key: "totalWorkers", label: "Trabalhadores" },
   { key: "totalBaptized", label: "Baptizados" },
   { key: "totalChildren", label: "Filhos a levar" },
+  { key: "totalSponsoredWithValue", label: "Patrocinados com valor" },
+  { key: "totalSponsoredGuests", label: "Convidados (sem valor)" },
 ];
 
 function formatDay(isoDate: string) {
@@ -96,6 +98,18 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="px-4 text-2xl font-bold text-primary">
             {stats.totalRevenueKz.toLocaleString("pt-PT")} Kz
+          </CardContent>
+        </Card>
+
+        <Card className="animate-in fade-in slide-in-from-bottom-2 gap-1 border-none bg-dunamis-green/10 fill-mode-both py-3 duration-500">
+          <CardHeader className="px-4">
+            <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Banknote className="size-3.5 shrink-0" aria-hidden />
+              <span className="truncate">Total em dinheiro do patrocínio</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 text-2xl font-bold text-dunamis-green">
+            {stats.totalSponsorshipRevenueKz.toLocaleString("pt-PT")} Kz
           </CardContent>
         </Card>
 
