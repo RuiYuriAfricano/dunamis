@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactElement } from "react";
-import { LogIn, LogOut, Pencil } from "lucide-react";
+import { LogIn, LogOut, Pencil, ScanLine } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
@@ -116,13 +116,17 @@ export function ParticipantHistoryDialog({
               <ul className="space-y-2">
                 {movements.map((m) => (
                   <li key={m.id} className="flex items-center gap-2 rounded-lg border p-2.5 text-sm">
-                    {m.type === MovementType.ENTRY ? (
+                    {m.type === "CHECK_IN" ? (
+                      <ScanLine className="size-4 shrink-0 text-primary" aria-hidden />
+                    ) : m.type === MovementType.ENTRY ? (
                       <LogIn className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
                     ) : (
                       <LogOut className="size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
                     )}
                     <div>
-                      <p className="font-medium">{m.type === MovementType.ENTRY ? "Entrada" : "Saída"}</p>
+                      <p className="font-medium">
+                        {m.type === "CHECK_IN" ? "Check-in inicial" : m.type === MovementType.ENTRY ? "Entrada" : "Saída"}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(m.recordedAt).toLocaleString("pt-PT")} · {m.recordedByName}
                       </p>

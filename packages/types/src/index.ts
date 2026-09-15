@@ -181,7 +181,7 @@ export interface RegistrationStatusSummary {
 
 export interface MovementLogEntry {
   id: string;
-  type: MovementType;
+  type: MovementType | "CHECK_IN";
   recordedAt: string;
   recordedByName: string;
 }

@@ -5,7 +5,7 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
-import { Prisma, PaymentStatus } from '@prisma/client';
+import { Prisma, PaymentStatus, MovementType } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import * as QRCode from 'qrcode';
 import * as ExcelJS from 'exceljs';
@@ -336,7 +336,12 @@ export class ParticipantsService {
   async getMovementHistory(id: string) {
     const participant = await this.prisma.participant.findFirst({
       where: { id, deletedAt: null },
-      select: { id: true },
+      select: {
+        id: true,
+        checkedIn: true,
+        checkedInAt: true,
+        checkedInBy: { select: { name: true } },
+      },
     });
     if (!participant) {
       throw new NotFoundException('Participante não encontrado.');
@@ -348,12 +353,32 @@ export class ParticipantsService {
       include: { recordedBy: { select: { name: true } } },
     });
 
-    return logs.map((log) => ({
+    const entries: {
+      id: string;
+      type: MovementType | 'CHECK_IN';
+      recordedAt: Date;
+      recordedByName: string;
+    }[] = logs.map((log) => ({
       id: log.id,
       type: log.type,
       recordedAt: log.recordedAt,
       recordedByName: log.recordedBy.name,
     }));
+
+    // The initial check-in isn't a MovementLog row (it's its own CheckIn
+    // record), so it never showed up in this history — surface it as a
+    // synthetic first entry instead of leaving it invisible.
+    if (participant.checkedIn && participant.checkedInAt) {
+      entries.push({
+        id: `checkin-${participant.id}`,
+        type: 'CHECK_IN',
+        recordedAt: participant.checkedInAt,
+        recordedByName: participant.checkedInBy?.name ?? '-',
+      });
+    }
+
+    entries.sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime());
+    return entries;
   }
 
   async getEditHistory(id: string) {
