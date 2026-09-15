@@ -95,7 +95,24 @@ export class CheckInService {
    */
   async recordMovement(qrToken: string, type: MovementType, operatorId: string) {
     const participant = await this.findByToken(qrToken);
+    await this.recordMovementForParticipant(participant, type, operatorId);
+    const updated = await this.findByToken(qrToken);
+    return this.toLookupResult(updated);
+  }
 
+  /** Admin-only counterpart to recordMovement, keyed by participant id instead of QR token. */
+  async recordMovementById(participantId: string, type: MovementType, operatorId: string) {
+    const participant = await this.findById(participantId);
+    await this.recordMovementForParticipant(participant, type, operatorId);
+    const updated = await this.findById(participantId);
+    return this.toLookupResult(updated);
+  }
+
+  private async recordMovementForParticipant(
+    participant: ParticipantWithCheckIn,
+    type: MovementType,
+    operatorId: string,
+  ) {
     if (!participant.checkedIn) {
       throw new BadRequestException(
         'Só é possível registar saídas/entradas após o check-in inicial.',
@@ -116,9 +133,6 @@ export class CheckInService {
         data: { insideVenue: type === MovementType.ENTRY },
       }),
     ]);
-
-    const updated = await this.findByToken(qrToken);
-    return this.toLookupResult(updated);
   }
 
   async updateBelongings(qrToken: string, belongings: string) {

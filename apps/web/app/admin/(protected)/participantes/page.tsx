@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, XCircle, Clock, Download, FileText, History, Pencil, PencilLine, ScanLine, Trash2, UserPlus } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Download, FileText, History, LogIn, LogOut, Pencil, PencilLine, ScanLine, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ import { apiFetch, API_URL, paymentProofUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
   MaritalStatus,
+  MovementType,
   OccupationStatus,
   PaymentStatus,
   type ParticipantSummary,
@@ -173,6 +174,7 @@ export default function ParticipantsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const [recordingMovementId, setRecordingMovementId] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<TransportStopSummary[]>("/transport-stops").then(setStops);
@@ -351,6 +353,29 @@ export default function ParticipantsPage() {
       toast.error("Não foi possível fazer o check-in.");
     } finally {
       setCheckingInId(null);
+    }
+  }
+
+  async function handleRecordMovement(p: ParticipantSummary) {
+    if (!session) return;
+    const type = p.insideVenue ? MovementType.EXIT : MovementType.ENTRY;
+    setRecordingMovementId(p.id);
+    try {
+      await apiFetch(`/check-in/by-id/${p.id}/movement`, {
+        method: "POST",
+        token: session.accessToken,
+        body: JSON.stringify({ type }),
+      });
+      setData((prev) =>
+        prev
+          ? { ...prev, data: prev.data.map((row) => (row.id === p.id ? { ...row, insideVenue: !row.insideVenue } : row)) }
+          : prev,
+      );
+      toast.success(type === MovementType.EXIT ? "Saída registada." : "Entrada registada.");
+    } catch {
+      toast.error("Não foi possível registar o movimento.");
+    } finally {
+      setRecordingMovementId(null);
     }
   }
 
@@ -766,9 +791,27 @@ export default function ParticipantsPage() {
                     </TableCell>
                     <TableCell>
                       {p.checkedIn ? (
-                        <Badge variant={p.insideVenue ? "default" : "secondary"}>
-                          {p.insideVenue ? "Dentro" : "Fora"}
-                        </Badge>
+                        <div className="flex flex-col items-start gap-1.5">
+                          <Badge variant={p.insideVenue ? "default" : "secondary"}>
+                            {p.insideVenue ? "Dentro" : "Fora"}
+                          </Badge>
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            className="h-6 px-2 text-[11px]"
+                            disabled={recordingMovementId === p.id}
+                            onClick={() => handleRecordMovement(p)}
+                          >
+                            {recordingMovementId === p.id ? (
+                              <Spinner className="size-3" />
+                            ) : p.insideVenue ? (
+                              <LogOut className="size-3" />
+                            ) : (
+                              <LogIn className="size-3" />
+                            )}
+                            {p.insideVenue ? "Registar saída" : "Registar entrada"}
+                          </Button>
+                        </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
