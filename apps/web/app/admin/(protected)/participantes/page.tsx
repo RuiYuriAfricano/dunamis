@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, XCircle, Clock, Download, FileText, History, Pencil, PencilLine, Trash2, UserPlus } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Download, FileText, History, Pencil, PencilLine, ScanLine, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -172,6 +172,7 @@ export default function ParticipantsPage() {
   const [savingBelongings, setSavingBelongings] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [checkingInId, setCheckingInId] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<TransportStopSummary[]>("/transport-stops").then(setStops);
@@ -325,6 +326,31 @@ export default function ParticipantsPage() {
       toast.error("Não foi possível descarregar o comprovativo.");
     } finally {
       setDownloadingId(null);
+    }
+  }
+
+  async function handleCheckIn(p: ParticipantSummary) {
+    if (!session) return;
+    setCheckingInId(p.id);
+    try {
+      await apiFetch(`/check-in/by-id/${p.id}`, { method: "POST", token: session.accessToken });
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              data: prev.data.map((row) =>
+                row.id === p.id
+                  ? { ...row, checkedIn: true, checkedInAt: new Date().toISOString(), insideVenue: true }
+                  : row,
+              ),
+            }
+          : prev,
+      );
+      toast.success("Check-in feito.");
+    } catch {
+      toast.error("Não foi possível fazer o check-in.");
+    } finally {
+      setCheckingInId(null);
     }
   }
 
@@ -720,9 +746,23 @@ export default function ParticipantsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={p.checkedIn ? "default" : "secondary"}>
-                        {p.checkedIn ? "Feito" : "Pendente"}
-                      </Badge>
+                      <div className="flex flex-col items-start gap-1.5">
+                        <Badge variant={p.checkedIn ? "default" : "secondary"}>
+                          {p.checkedIn ? "Feito" : "Pendente"}
+                        </Badge>
+                        {!p.checkedIn && p.paymentStatus === PaymentStatus.CONFIRMED && (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            className="h-6 px-2 text-[11px]"
+                            disabled={checkingInId === p.id}
+                            onClick={() => handleCheckIn(p)}
+                          >
+                            {checkingInId === p.id ? <Spinner className="size-3" /> : <ScanLine className="size-3" />}
+                            Fazer check-in
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {p.checkedIn ? (

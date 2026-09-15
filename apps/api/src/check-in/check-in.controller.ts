@@ -27,6 +27,14 @@ export class CheckInController {
     return this.checkInService.confirm(qrToken, user.id);
   }
 
+  @Post('by-id/:participantId')
+  confirmById(
+    @Param('participantId') participantId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.checkInService.confirmById(participantId, user.id);
+  }
+
   @Post(':qrToken/movement')
   recordMovement(
     @Param('qrToken') qrToken: string,

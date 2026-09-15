@@ -32,15 +32,41 @@ export class CheckInService {
 
   async confirm(qrToken: string, operatorId: string) {
     const participant = await this.findByToken(qrToken);
+    await this.confirmParticipant(participant.id, operatorId);
+    const updated = await this.findByToken(qrToken);
+    return this.toLookupResult(updated);
+  }
 
+  /**
+   * Admin-only fallback for people who show up without a scannable QR (lost
+   * the confirmation PDF, no email access). Only allowed once the payment
+   * has actually been validated — this bypasses the QR check entirely, so
+   * it shouldn't be usable as a way to wave someone through before their
+   * payment is confirmed.
+   */
+  async confirmById(participantId: string, operatorId: string) {
+    const participant = await this.findById(participantId);
+
+    if (participant.paymentStatus !== 'CONFIRMED') {
+      throw new BadRequestException(
+        'Só é possível fazer check-in de participantes com o pagamento confirmado.',
+      );
+    }
+
+    await this.confirmParticipant(participant.id, operatorId);
+    const updated = await this.findById(participantId);
+    return this.toLookupResult(updated);
+  }
+
+  private async confirmParticipant(participantId: string, operatorId: string) {
     try {
       await this.prisma.$transaction(async (tx) => {
         await tx.checkIn.create({
-          data: { participantId: participant.id, operatorId },
+          data: { participantId, operatorId },
         });
 
         await tx.participant.update({
-          where: { id: participant.id },
+          where: { id: participantId },
           data: {
             checkedIn: true,
             checkedInAt: new Date(),
@@ -54,14 +80,11 @@ export class CheckInService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        const alreadyCheckedIn = await this.findByToken(qrToken);
+        const alreadyCheckedIn = await this.findById(participantId);
         throw new ConflictException(this.toLookupResult(alreadyCheckedIn));
       }
       throw error;
     }
-
-    const updated = await this.findByToken(qrToken);
-    return this.toLookupResult(updated);
   }
 
   /**
@@ -118,6 +141,19 @@ export class CheckInService {
 
     if (!participant) {
       throw new NotFoundException('QR Code inválido ou inscrição inexistente.');
+    }
+
+    return participant;
+  }
+
+  private async findById(id: string) {
+    const participant = await this.prisma.participant.findFirst({
+      where: { id, deletedAt: null },
+      include: PARTICIPANT_INCLUDE,
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participante não encontrado.');
     }
 
     return participant;
