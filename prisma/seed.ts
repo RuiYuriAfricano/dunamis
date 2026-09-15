@@ -37,13 +37,14 @@ const TEAM_ADMINS = [
   { name: "Abrãao Marcos", email: "abraao.marcos@dunamis.ao" },
   { name: "Silas Chama", email: "silas.chama@dunamis.ao" },
   { name: "Marco", email: "marco@dunamis.ao" },
-  // Generic check-in/event-day accounts — full admin access, same shared
-  // password as the rest of the team.
-  ...Array.from({ length: 6 }, (_, i) => ({
-    name: `Operador ${i + 1}`,
-    email: `operador${i + 1}@dunamis.ao`,
-  })),
 ];
+
+// Generic check-in-only accounts — same shared password as TEAM_ADMINS, but
+// OPERATOR role (no access to the participants list, dashboard or settings).
+const TEAM_OPERATORS = Array.from({ length: 6 }, (_, i) => ({
+  name: `Operador ${i + 1}`,
+  email: `operador${i + 1}@dunamis.ao`,
+}));
 
 // One-time renames for stops that already exist under an old name — applied
 // before the upsert below so a rerun never creates a duplicate under the new name.
@@ -140,6 +141,19 @@ async function main() {
         email: admin.email,
         passwordHash: teamAdminPasswordHash,
         role: "ADMIN",
+      },
+    });
+  }
+
+  for (const operator of TEAM_OPERATORS) {
+    await prisma.user.upsert({
+      where: { email: operator.email },
+      update: {},
+      create: {
+        name: operator.name,
+        email: operator.email,
+        passwordHash: teamAdminPasswordHash,
+        role: "OPERATOR",
       },
     });
   }
