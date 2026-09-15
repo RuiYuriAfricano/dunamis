@@ -16,11 +16,12 @@ export function QrScanner({ active, onScan }: { active: boolean; onScan: (token:
 
     let cancelled = false;
     let scanner: import("html5-qrcode").Html5Qrcode | null = null;
+    let startPromise: Promise<unknown> = Promise.resolve();
 
     import("html5-qrcode").then(({ Html5Qrcode }) => {
       if (cancelled) return;
       scanner = new Html5Qrcode(SCANNER_ELEMENT_ID);
-      scanner
+      startPromise = scanner
         .start(
           { facingMode: "environment" },
           { fps: 10, qrbox: 250 },
@@ -34,9 +35,18 @@ export function QrScanner({ active, onScan }: { active: boolean; onScan: (token:
 
     return () => {
       cancelled = true;
-      scanner
-        ?.stop()
-        .then(() => scanner?.clear())
+      // html5-qrcode's stop() throws synchronously if the camera hasn't
+      // finished starting yet, which corrupts the unmount if called too
+      // early (e.g. navigating away right after opening the scanner) —
+      // wait for start() to settle and swallow the throw before stopping.
+      startPromise
+        .then(() => {
+          try {
+            scanner?.stop().then(() => scanner?.clear()).catch(() => undefined);
+          } catch {
+            // scanner never entered the "scanning" state — nothing to stop.
+          }
+        })
         .catch(() => undefined);
     };
   }, [active]);

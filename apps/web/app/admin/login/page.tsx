@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
       );
 
       setSession({ accessToken: response.accessToken, ...response.user });
-      router.push(response.user.role === "ADMIN" ? "/admin/dashboard" : "/check-in");
+      router.push("/admin/dashboard");
       router.refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Não foi possível iniciar sessão.");
