@@ -21,6 +21,11 @@ type ParticipantWithCheckIn = Prisma.ParticipantGetPayload<{
   include: typeof PARTICIPANT_INCLUDE;
 }>;
 
+export interface BelongingsCheck {
+  belongingsOk?: boolean;
+  belongingsNotes?: string;
+}
+
 @Injectable()
 export class CheckInService {
   constructor(private readonly prisma: PrismaService) {}
@@ -93,17 +98,27 @@ export class CheckInService {
    * meaningful once checked in, and only in the direction that actually
    * matches their current state (can't "exit" twice in a row).
    */
-  async recordMovement(qrToken: string, type: MovementType, operatorId: string) {
+  async recordMovement(
+    qrToken: string,
+    type: MovementType,
+    operatorId: string,
+    belongingsCheck?: BelongingsCheck,
+  ) {
     const participant = await this.findByToken(qrToken);
-    await this.recordMovementForParticipant(participant, type, operatorId);
+    await this.recordMovementForParticipant(participant, type, operatorId, belongingsCheck);
     const updated = await this.findByToken(qrToken);
     return this.toLookupResult(updated);
   }
 
   /** Admin-only counterpart to recordMovement, keyed by participant id instead of QR token. */
-  async recordMovementById(participantId: string, type: MovementType, operatorId: string) {
+  async recordMovementById(
+    participantId: string,
+    type: MovementType,
+    operatorId: string,
+    belongingsCheck?: BelongingsCheck,
+  ) {
     const participant = await this.findById(participantId);
-    await this.recordMovementForParticipant(participant, type, operatorId);
+    await this.recordMovementForParticipant(participant, type, operatorId, belongingsCheck);
     const updated = await this.findById(participantId);
     return this.toLookupResult(updated);
   }
@@ -112,6 +127,7 @@ export class CheckInService {
     participant: ParticipantWithCheckIn,
     type: MovementType,
     operatorId: string,
+    belongingsCheck?: BelongingsCheck,
   ) {
     if (!participant.checkedIn) {
       throw new BadRequestException(
@@ -124,9 +140,19 @@ export class CheckInService {
       throw new ConflictException(this.toLookupResult(participant));
     }
 
+    // The belongings check only makes sense on the way out — a returning
+    // ENTRY doesn't carry it, even if the caller happened to send one.
+    const isExit = type === MovementType.EXIT;
+
     await this.prisma.$transaction([
       this.prisma.movementLog.create({
-        data: { participantId: participant.id, type, recordedById: operatorId },
+        data: {
+          participantId: participant.id,
+          type,
+          recordedById: operatorId,
+          belongingsOk: isExit ? belongingsCheck?.belongingsOk : undefined,
+          belongingsNotes: isExit ? belongingsCheck?.belongingsNotes : undefined,
+        },
       }),
       this.prisma.participant.update({
         where: { id: participant.id },
@@ -193,6 +219,8 @@ export class CheckInService {
       lastMovementType: lastMovement?.type ?? null,
       lastMovementAt: lastMovement?.recordedAt ?? null,
       lastMovementByName: lastMovement?.recordedBy.name ?? null,
+      lastMovementBelongingsOk: lastMovement?.belongingsOk ?? null,
+      lastMovementBelongingsNotes: lastMovement?.belongingsNotes ?? null,
     };
   }
 }

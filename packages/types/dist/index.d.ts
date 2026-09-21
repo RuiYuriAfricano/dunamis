@@ -131,6 +131,7 @@ export interface DashboardStats {
     totalMattressRequired: number;
     totalCheckedIn: number;
     totalCheckedOut: number;
+    totalMissingBelongings: number;
     totalWorkers: number;
     totalBaptized: number;
     totalTaxi: number;
@@ -171,6 +172,8 @@ export interface MovementLogEntry {
     type: MovementType | "CHECK_IN";
     recordedAt: string;
     recordedByName: string;
+    belongingsOk?: boolean | null;
+    belongingsNotes?: string | null;
 }
 export interface ParticipantEditChange {
     field: string;
@@ -200,6 +203,8 @@ export interface CheckInLookupResult {
     lastMovementType: MovementType | null;
     lastMovementAt: string | null;
     lastMovementByName: string | null;
+    lastMovementBelongingsOk: boolean | null;
+    lastMovementBelongingsNotes: string | null;
 }
 export interface FeedbackInput {
     registrationRating?: number;

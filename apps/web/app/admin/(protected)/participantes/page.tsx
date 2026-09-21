@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import { Spinner } from "@/components/ui/spinner";
 import { ParticipantHistoryDialog } from "@/components/admin/participant-history-dialog";
+import { BelongingsCheckoutDialog } from "@/components/check-in/belongings-checkout-dialog";
 import { useSession } from "@/lib/use-session";
 import { apiFetch, API_URL, paymentProofUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -175,6 +176,7 @@ export default function ParticipantsPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const [recordingMovementId, setRecordingMovementId] = useState<string | null>(null);
+  const [checkoutTarget, setCheckoutTarget] = useState<ParticipantSummary | null>(null);
 
   useEffect(() => {
     apiFetch<TransportStopSummary[]>("/transport-stops").then(setStops);
@@ -356,7 +358,10 @@ export default function ParticipantsPage() {
     }
   }
 
-  async function handleRecordMovement(p: ParticipantSummary) {
+  async function handleRecordMovement(
+    p: ParticipantSummary,
+    belongingsCheck?: { belongingsOk: boolean; belongingsNotes: string },
+  ) {
     if (!session) return;
     const type = p.insideVenue ? MovementType.EXIT : MovementType.ENTRY;
     setRecordingMovementId(p.id);
@@ -364,13 +369,14 @@ export default function ParticipantsPage() {
       await apiFetch(`/check-in/by-id/${p.id}/movement`, {
         method: "POST",
         token: session.accessToken,
-        body: JSON.stringify({ type }),
+        body: JSON.stringify({ type, ...belongingsCheck }),
       });
       setData((prev) =>
         prev
           ? { ...prev, data: prev.data.map((row) => (row.id === p.id ? { ...row, insideVenue: !row.insideVenue } : row)) }
           : prev,
       );
+      setCheckoutTarget(null);
       toast.success(type === MovementType.EXIT ? "Saída registada." : "Entrada registada.");
     } catch {
       toast.error("Não foi possível registar o movimento.");
@@ -800,7 +806,7 @@ export default function ParticipantsPage() {
                             variant="outline"
                             className="h-6 px-2 text-[11px]"
                             disabled={recordingMovementId === p.id}
-                            onClick={() => handleRecordMovement(p)}
+                            onClick={() => (p.insideVenue ? setCheckoutTarget(p) : handleRecordMovement(p))}
                           >
                             {recordingMovementId === p.id ? (
                               <Spinner className="size-3" />
@@ -981,6 +987,16 @@ export default function ParticipantsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BelongingsCheckoutDialog
+        open={!!checkoutTarget}
+        onOpenChange={(open) => !open && setCheckoutTarget(null)}
+        belongings={checkoutTarget?.belongings}
+        submitting={recordingMovementId === checkoutTarget?.id}
+        onConfirm={(belongingsOk, belongingsNotes) =>
+          checkoutTarget && handleRecordMovement(checkoutTarget, { belongingsOk, belongingsNotes })
+        }
+      />
     </div>
   );
 }

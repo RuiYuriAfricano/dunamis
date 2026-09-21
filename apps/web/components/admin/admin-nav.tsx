@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/participantes", label: "Inscritos" },
   { href: "/check-in", label: "Check-in" },
+  { href: "/admin/feedback", label: "Feedback" },
 ];
 
 const ADMIN_ONLY_LINKS = [{ href: "/admin/configuracoes", label: "Configurações" }];

@@ -130,6 +130,17 @@ export function ParticipantHistoryDialog({
                       <p className="text-xs text-muted-foreground">
                         {new Date(m.recordedAt).toLocaleString("pt-PT")} · {m.recordedByName}
                       </p>
+                      {m.type === MovementType.EXIT && m.belongingsOk !== null && m.belongingsOk !== undefined && (
+                        <p
+                          className={`mt-1 text-xs font-medium ${
+                            m.belongingsOk
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-destructive"
+                          }`}
+                        >
+                          {m.belongingsOk ? "Pertences OK" : `Falta algo: ${m.belongingsNotes}`}
+                        </p>
+                      )}
                     </div>
                   </li>
                 ))}

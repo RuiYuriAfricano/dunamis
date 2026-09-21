@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { PageLoading } from "@/components/ui/page-loading";
 import { QrScanner } from "@/components/check-in/qr-scanner";
+import { BelongingsCheckoutDialog } from "@/components/check-in/belongings-checkout-dialog";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { useSession } from "@/lib/use-session";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -243,21 +244,24 @@ function MovementTracker({
   onUpdated: (result: CheckInLookupResult) => void;
 }) {
   const [recording, setRecording] = useState(false);
+  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
 
-  async function recordMovement(type: MovementType) {
+  async function recordMovement(type: MovementType, belongingsCheck?: { belongingsOk: boolean; belongingsNotes: string }) {
     if (!qrToken) return;
     setRecording(true);
     try {
       const updated = await apiFetch<CheckInLookupResult>(`/check-in/${qrToken}/movement`, {
         method: "POST",
         token: session.accessToken,
-        body: JSON.stringify({ type }),
+        body: JSON.stringify({ type, ...belongingsCheck }),
       });
       onUpdated(updated);
+      setCheckoutDialogOpen(false);
       toast.success(type === MovementType.EXIT ? "Saída registada." : "Entrada registada.");
     } catch (err) {
       if (err instanceof ApiError && err.status === 409 && err.payload) {
         onUpdated(err.payload as CheckInLookupResult);
+        setCheckoutDialogOpen(false);
         toast.error("O estado já tinha sido atualizado por outra pessoa — verifique antes de repetir.");
       } else {
         toast.error(err instanceof ApiError ? err.message : "Não foi possível registar o movimento.");
@@ -291,12 +295,22 @@ function MovementTracker({
         variant="outline"
         className="w-full"
         disabled={recording}
-        onClick={() => recordMovement(result.insideVenue ? MovementType.EXIT : MovementType.ENTRY)}
+        onClick={() => (result.insideVenue ? setCheckoutDialogOpen(true) : recordMovement(MovementType.ENTRY))}
       >
         {recording && <Spinner />}
         {result.insideVenue ? <LogOut className="size-4" /> : <LogIn className="size-4" />}
         {recording ? "A registar..." : result.insideVenue ? "Registar saída" : "Registar entrada"}
       </Button>
+
+      <BelongingsCheckoutDialog
+        open={checkoutDialogOpen}
+        onOpenChange={setCheckoutDialogOpen}
+        belongings={result.belongings}
+        submitting={recording}
+        onConfirm={(belongingsOk, belongingsNotes) =>
+          recordMovement(MovementType.EXIT, { belongingsOk, belongingsNotes })
+        }
+      />
     </CardContent>
   );
 }

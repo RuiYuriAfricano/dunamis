@@ -41,7 +41,10 @@ export class CheckInController {
     @Body() dto: RecordMovementDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.checkInService.recordMovementById(participantId, dto.type, user.id);
+    return this.checkInService.recordMovementById(participantId, dto.type, user.id, {
+      belongingsOk: dto.belongingsOk,
+      belongingsNotes: dto.belongingsNotes,
+    });
   }
 
   @Post(':qrToken/movement')
@@ -50,7 +53,10 @@ export class CheckInController {
     @Body() dto: RecordMovementDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.checkInService.recordMovement(qrToken, dto.type, user.id);
+    return this.checkInService.recordMovement(qrToken, dto.type, user.id, {
+      belongingsOk: dto.belongingsOk,
+      belongingsNotes: dto.belongingsNotes,
+    });
   }
 
   @Patch(':qrToken/belongings')

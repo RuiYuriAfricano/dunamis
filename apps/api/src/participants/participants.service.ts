@@ -358,11 +358,15 @@ export class ParticipantsService {
       type: MovementType | 'CHECK_IN';
       recordedAt: Date;
       recordedByName: string;
+      belongingsOk?: boolean | null;
+      belongingsNotes?: string | null;
     }[] = logs.map((log) => ({
       id: log.id,
       type: log.type,
       recordedAt: log.recordedAt,
       recordedByName: log.recordedBy.name,
+      belongingsOk: log.belongingsOk,
+      belongingsNotes: log.belongingsNotes,
     }));
 
     // The initial check-in isn't a MovementLog row (it's its own CheckIn

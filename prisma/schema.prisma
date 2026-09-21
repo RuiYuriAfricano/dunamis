@@ -185,6 +185,11 @@ model MovementLog {
   participantId String       @map("participant_id")
   participant   Participant  @relation(fields: [participantId], references: [id])
   type          MovementType
+  // Belongings check on the way out — did the bags/backpacks still match
+  // what was recorded at check-in, or is something missing. Only meaningful
+  // on EXIT rows; left null for ENTRY.
+  belongingsOk    Boolean?  @map("belongings_ok")
+  belongingsNotes String?   @map("belongings_notes")
   recordedAt    DateTime     @default(now()) @map("recorded_at")
   recordedById  String       @map("recorded_by_id")
   recordedBy    User         @relation(fields: [recordedById], references: [id])
