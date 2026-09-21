@@ -126,9 +126,19 @@ export default function FeedbackPage() {
   }
 
   const answeredCount = Object.keys(ratings).length;
+  const allRated = answeredCount === CATEGORIES.length;
+  const emailInvalid = contactEmail.trim() !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim());
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!allRated) {
+      toast.error("Por favor avalie todas as áreas antes de enviar.");
+      return;
+    }
+    if (emailInvalid) {
+      toast.error("Indique um email válido, ou deixe o campo em branco.");
+      return;
+    }
     setSubmitting(true);
     try {
       const payload: FeedbackInput = {
@@ -170,8 +180,8 @@ export default function FeedbackPage() {
           </span>
           <h1 className="font-display text-3xl tracking-wide text-dunamis-green">Dê-nos o seu feedback</h1>
           <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
-            Como foi a sua experiência no DUNAMIS? Avalie cada área com estrelas — pode deixar em branco o que não
-            se aplica a si.
+            Como foi a sua experiência no DUNAMIS? Avalie todas as áreas abaixo com estrelas — a avaliação é
+            obrigatória, os comentários são opcionais.
           </p>
         </div>
 
@@ -189,7 +199,9 @@ export default function FeedbackPage() {
                     <cat.icon className="size-4" aria-hidden />
                   </span>
                   <div>
-                    <p className="font-medium text-foreground">{cat.label}</p>
+                    <p className="font-medium text-foreground">
+                      {cat.label} <span className="text-destructive">*</span>
+                    </p>
                     <p className="text-xs text-muted-foreground">{cat.description}</p>
                   </div>
                 </div>
@@ -200,10 +212,10 @@ export default function FeedbackPage() {
             ))}
           </div>
 
-          <p className="text-center text-xs text-muted-foreground">
-            {answeredCount === 0
-              ? "Ainda não avaliou nenhuma área."
-              : `Avaliou ${answeredCount} de ${CATEGORIES.length} áreas.`}
+          <p className={`text-center text-xs ${allRated ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+            {allRated
+              ? "Avaliou todas as áreas — já pode enviar."
+              : `Avaliou ${answeredCount} de ${CATEGORIES.length} áreas (todas são obrigatórias).`}
           </p>
 
           <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -231,7 +243,9 @@ export default function FeedbackPage() {
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
+                    aria-invalid={emailInvalid}
                   />
+                  {emailInvalid && <p className="text-xs text-destructive">Indique um email válido.</p>}
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -240,7 +254,7 @@ export default function FeedbackPage() {
             </CardContent>
           </Card>
 
-          <Button type="submit" className="w-full" disabled={submitting}>
+          <Button type="submit" className="w-full" disabled={submitting || !allRated || emailInvalid}>
             {submitting && <Spinner />}
             {submitting ? "A enviar..." : "Enviar feedback"}
           </Button>

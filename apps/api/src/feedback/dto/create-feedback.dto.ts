@@ -2,9 +2,8 @@ import { Transform } from 'class-transformer';
 import { IsEmail, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { toInt } from '../../participants/dto/create-participant.dto';
 
-function optionalRating() {
+function requiredRating() {
   return function (target: object, propertyKey: string) {
-    IsOptional()(target, propertyKey);
     Transform(toInt)(target, propertyKey);
     IsInt()(target, propertyKey);
     Min(1)(target, propertyKey);
@@ -13,35 +12,35 @@ function optionalRating() {
 }
 
 export class CreateFeedbackDto {
-  @optionalRating()
-  registrationRating?: number;
+  @requiredRating()
+  registrationRating!: number;
 
-  @optionalRating()
-  transportRating?: number;
+  @requiredRating()
+  transportRating!: number;
 
-  @optionalRating()
-  checkInRating?: number;
+  @requiredRating()
+  checkInRating!: number;
 
-  @optionalRating()
-  discipleshipRating?: number;
+  @requiredRating()
+  discipleshipRating!: number;
 
-  @optionalRating()
-  worshipRating?: number;
+  @requiredRating()
+  worshipRating!: number;
 
-  @optionalRating()
-  preachingRating?: number;
+  @requiredRating()
+  preachingRating!: number;
 
-  @optionalRating()
-  activitiesRating?: number;
+  @requiredRating()
+  activitiesRating!: number;
 
-  @optionalRating()
-  musicRating?: number;
+  @requiredRating()
+  musicRating!: number;
 
-  @optionalRating()
-  foodRating?: number;
+  @requiredRating()
+  foodRating!: number;
 
-  @optionalRating()
-  accommodationRating?: number;
+  @requiredRating()
+  accommodationRating!: number;
 
   @IsOptional()
   @IsString()
