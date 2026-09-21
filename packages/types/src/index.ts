@@ -141,6 +141,7 @@ export interface DashboardStats {
   totalTentRequired: number;
   totalMattressRequired: number;
   totalCheckedIn: number;
+  totalCheckedOut: number;
   totalWorkers: number;
   totalBaptized: number;
   totalTaxi: number;

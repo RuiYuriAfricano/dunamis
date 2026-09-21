@@ -38,6 +38,7 @@ const STAT_CARDS: { key: keyof DashboardStats; label: string }[] = [
   { key: "totalTentRequired", label: "Precisam de tenda" },
   { key: "totalMattressRequired", label: "Precisam de colchão" },
   { key: "totalCheckedIn", label: "Já fizeram check-in" },
+  { key: "totalCheckedOut", label: "Já fizeram check-out" },
   { key: "totalWorkers", label: "Trabalhadores" },
   { key: "totalBaptized", label: "Baptizados" },
   { key: "totalChildren", label: "Filhos a levar" },
