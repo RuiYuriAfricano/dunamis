@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/#localizacao", label: "Localização" },
   { href: "/#faq", label: "FAQ" },
   { href: "/normas", label: "Normas" },
+  { href: "/feedback", label: "Feedback" },
 ];
 
 export function SiteHeader() {

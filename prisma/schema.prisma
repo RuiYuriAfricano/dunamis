@@ -205,3 +205,27 @@ model ParticipantEditLog {
   @@index([participantId])
   @@map("participant_edit_logs")
 }
+
+// Anonymous-by-default feedback from the public site, covering every stage
+// of the event so organisers can see what worked and what didn't per area —
+// ratings are all optional since a respondent may only have an opinion on
+// some of them.
+model Feedback {
+  id                  String   @id @default(cuid())
+  registrationRating  Int?     @map("registration_rating")
+  transportRating     Int?     @map("transport_rating")
+  checkInRating       Int?     @map("check_in_rating")
+  discipleshipRating  Int?     @map("discipleship_rating")
+  worshipRating       Int?     @map("worship_rating")
+  preachingRating     Int?     @map("preaching_rating")
+  activitiesRating    Int?     @map("activities_rating")
+  musicRating         Int?     @map("music_rating")
+  foodRating          Int?     @map("food_rating")
+  accommodationRating Int?     @map("accommodation_rating")
+  comments            String?  @default("")
+  contactName         String?  @map("contact_name")
+  contactEmail        String?  @map("contact_email")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@map("feedback")
+}

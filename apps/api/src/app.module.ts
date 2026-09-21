@@ -12,6 +12,7 @@ import { CheckInModule } from './check-in/check-in.module';
 import { StatsModule } from './stats/stats.module';
 import { EventSettingsModule } from './event-settings/event-settings.module';
 import { UsersModule } from './users/users.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { UsersModule } from './users/users.module';
     StatsModule,
     EventSettingsModule,
     UsersModule,
+    FeedbackModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

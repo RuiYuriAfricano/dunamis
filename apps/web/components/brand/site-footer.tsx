@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { EVENT_PHONE } from "@/lib/event";
 
 export function SiteFooter() {
@@ -29,6 +30,9 @@ export function SiteFooter() {
           da <span className="font-medium text-foreground">Terceira Igreja Baptista de Luanda</span>.
         </p>
         <p className="text-xs text-muted-foreground">Contacto: {EVENT_PHONE}</p>
+        <Link href="/feedback" className="text-xs font-medium text-primary underline underline-offset-2">
+          Dê-nos o seu feedback
+        </Link>
         <p className="text-xs text-muted-foreground">
           © {new Date().getFullYear()} Terceira Igreja Baptista de Luanda — DUNAMIS
         </p>

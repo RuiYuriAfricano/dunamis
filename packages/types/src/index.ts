@@ -217,3 +217,24 @@ export interface CheckInLookupResult {
   lastMovementAt: string | null;
   lastMovementByName: string | null;
 }
+
+export interface FeedbackInput {
+  registrationRating?: number;
+  transportRating?: number;
+  checkInRating?: number;
+  discipleshipRating?: number;
+  worshipRating?: number;
+  preachingRating?: number;
+  activitiesRating?: number;
+  musicRating?: number;
+  foodRating?: number;
+  accommodationRating?: number;
+  comments?: string;
+  contactName?: string;
+  contactEmail?: string;
+}
+
+export interface FeedbackEntry extends FeedbackInput {
+  id: string;
+  createdAt: string;
+}
