@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Star, MessageSquareText, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PageLoading } from "@/components/ui/page-loading";
 import { useSession } from "@/lib/use-session";
 import { apiFetch } from "@/lib/api";
@@ -41,9 +42,12 @@ function MiniStars({ value }: { value: number }) {
   );
 }
 
+const PAGE_SIZE = 6;
+
 export default function AdminFeedbackPage() {
   const session = useSession();
   const [entries, setEntries] = useState<FeedbackEntry[] | null>(null);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!session) return;
@@ -67,6 +71,13 @@ export default function AdminFeedbackPage() {
 
   const withComments = entries?.filter((e) => e.comments && e.comments.trim().length > 0) ?? [];
   const withContact = entries?.filter((e) => e.contactName || e.contactEmail) ?? [];
+
+  const sortedEntries = useMemo(
+    () => [...(entries ?? [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [entries],
+  );
+  const totalPages = Math.max(1, Math.ceil(sortedEntries.length / PAGE_SIZE));
+  const pagedEntries = sortedEntries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   if (!session || !entries) {
     return <PageLoading label="A carregar feedback..." />;
@@ -153,9 +164,7 @@ export default function AdminFeedbackPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           {entries.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">Ainda sem respostas.</p>}
-          {[...entries]
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .map((entry) => {
+          {pagedEntries.map((entry) => {
               const rated = CATEGORIES.filter((c) => typeof entry[c.key] === "number");
               return (
                 <div key={entry.id} className="rounded-lg border p-3.5">
@@ -198,6 +207,23 @@ export default function AdminFeedbackPage() {
             })}
         </CardContent>
       </Card>
+
+      {entries.length > 0 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>{entries.length} resposta(s)</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              Anterior
+            </Button>
+            <span>
+              Página {page} de {totalPages}
+            </span>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              Seguinte
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
